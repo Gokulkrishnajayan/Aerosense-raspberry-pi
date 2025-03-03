@@ -1,9 +1,10 @@
-from flask import Flask, Response
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from picamera2 import Picamera2
 import time
 import io
 
-app = Flask(__name__)
+app = FastAPI()
 
 # Global variable for the camera
 picam2 = None
@@ -14,10 +15,11 @@ def initialize_camera():
         picam2 = Picamera2()
         print("Camera initialized successfully.")
 
-        # Configure the camera for low latency
+        # Configure the camera for low latency with hardware acceleration
         config = picam2.create_video_configuration(
             main={"size": (320, 240)},  # Smaller resolution
-            controls={"FrameRate": 15}  # Lower frame rate
+            controls={"FrameRate": 15},  # Lower frame rate
+            encode="hw"  # Enable hardware acceleration
         )
         picam2.configure(config)
         print("Camera configured successfully.")
@@ -51,13 +53,12 @@ def generate_frames():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
-@app.route('/video_feed')
+@app.get("/video_feed")
 def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame',
-                    headers={"X-Accel-Buffering": "no"})  # Disable buffering
+    return StreamingResponse(generate_frames(),
+                            media_type="multipart/x-mixed-replace; boundary=frame")
 
-@app.route('/')
+@app.get("/")
 def index():
     return """
     <html>
@@ -78,13 +79,18 @@ def cleanup():
         picam2.stop()
         picam2.close()
 
+# Register cleanup function to run on exit
+import atexit
+atexit.register(cleanup)
+
 if __name__ == '__main__':
     try:
         # Initialize the camera
         initialize_camera()
 
-        # Run the Flask app
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        # Run the FastAPI app with Uvicorn
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=5000)
     except Exception as e:
         print(f"Error: {e}")
     finally:
