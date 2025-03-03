@@ -126,8 +126,9 @@
 
     <div class="video-feed">
         <h2>Live Drone Camera Feed</h2>
-        <img id="videoStream" src="http://192.168.137.104:5000/video_feed" width="640" height="480">
+        <img id="videoStream" src="http://{{ request.host }}/video_feed" width="640" height="480">
     </div>
+    
     
 
     <div id="telemetry">
