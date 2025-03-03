@@ -79,7 +79,7 @@ def get_majority_fingers_state():
 
 while True:
     frame = picam2.capture_array()
-    frame = cv2.flip(frame, 0) 
+    # frame = cv2.flip(frame, 0) 
     
     # Convert the RGB frame to BGR for OpenCV
     # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
