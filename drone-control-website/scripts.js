@@ -89,7 +89,3 @@ if (window.location.pathname.endsWith('control.html')) {
     });
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    const video = document.getElementById("videoStream");
-    video.src = "http://192.168.5.198:8000/video_feed"; // Replace with Pi IP
-});
