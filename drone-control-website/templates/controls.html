@@ -120,16 +120,20 @@
     </style>
 </head>
 <body onload="init()">
+
     <div id="orientation-warning">
         <h2>Please rotate your device to landscape mode!</h2>
     </div>
 
-    <div class="video-feed">
-        <h2>Live Drone Camera Feed</h2>
-        <img id="videoStream" src="http://192.168.5.198:8000/video_feed" width="640" height="480">
+    <img id="videoStream" src="http://192.168.5.198:8000/video_feed" alt="Video Feed">
+
+    <div class="controls-container">
+        <h1>Drone Controls</h1>
+        <button id="takeoffButton">Take Off</button>
+        <button id="landButton">Land</button>
+        <button id="emergencyButton">Emergency Stop</button>
     </div>
-    
-    
+
 
     <div id="telemetry">
         <span>Lat: 0.0 | Lon: 0.0 | Alt: 0.0m | </span>
@@ -150,6 +154,7 @@
         <span id="active-commands"></span>
     </div>
 
+    <script src="scripts.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         const socket = io();
