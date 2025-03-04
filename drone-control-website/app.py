@@ -33,9 +33,10 @@ simulated_drone = {
 #                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 # # Video feed route
-# @app.route('/video_feed')
-# def video_feed():
-#     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/video_feed')
+def video_feed():
+    return Response("Redirecting to FastAPI video feed...", status=307, headers={"Location": "http://localhost:8000/video_feed"})
+
 
 async def telemetry_task():
     while True:
