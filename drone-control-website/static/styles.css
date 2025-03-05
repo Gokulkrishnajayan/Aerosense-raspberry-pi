@@ -1,0 +1,164 @@
+/* Remove margin and padding for a full-screen experience */
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* Make the video background cover the entire screen */
+#videoStream {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures full screen coverage */
+    z-index: -1; /* Send video to the background */
+}
+
+/* Buttons for Mobile (Top-Right Corner) */
+.controls-container {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
+/* Buttons Style */
+button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+/* Desktop Adjustments */
+@media (min-width: 1024px) {
+    #videoStream {
+        width: 80vw;
+        height: auto;
+        max-height: 80vh;
+    }
+
+    .controls-container {
+        top: 20px;
+        right: 20px;
+    }
+
+    button {
+        font-size: 18px;
+        padding: 15px 25px;
+    }
+}
+
+/* Telemetry Box */
+#telemetry {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    z-index: 1000;
+    color: white;
+}
+
+/* Orientation Warning */
+#orientation-warning {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    text-align: center;
+}
+
+/* Joystick Styling */
+.joystick-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+}
+
+.joystick {
+    display: none;
+    position: fixed;
+    width: 120px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    touch-action: none;
+    z-index: 1001;
+    justify-content: center;
+    align-items: center;
+}
+
+.joystick-handle {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    position: absolute;
+    transform: translate(0%, 0%);
+    transition: transform 0.1s;
+}
+
+/* Command Display */
+#command-display {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 1rem;
+    font-size: 1.2rem;
+    border-radius: 0.5rem;
+    z-index: 1000;
+    display: none;
+    color: white;
+}
+
+.active-command {
+    display: inline-block;
+    margin: 0 10px;
+    font-size: 1.2rem;
+}
+
+/* Arm Status */
+#arm-status {
+    color: red;
+    font-weight: bold;
+}
+
+#arm-status.armed {
+    color: lime;
+}
+
+/* Ensure Proper Mobile Orientation */
+@media screen and (orientation: portrait) {
+    #orientation-warning {
+        display: flex;
+    }
+}
