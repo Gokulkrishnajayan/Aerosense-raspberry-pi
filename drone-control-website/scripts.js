@@ -32,7 +32,7 @@ if (window.location.pathname.endsWith('control.html')) {
     const emergencyButton = document.getElementById('emergencyButton');
 
     // WebSocket connection to Raspberry Pi
-    const socket = new WebSocket('ws://YOUR_PI_IP:5000');
+    const socket = new WebSocket('ws://192.168.5.198:5000');
 
     socket.onopen = function () {
         console.log('WebSocket connection established');
@@ -49,7 +49,7 @@ if (window.location.pathname.endsWith('control.html')) {
         videoFeed.srcObject = event.streams[0];
     };
 
-    fetch('http://YOUR_PI_IP:8080/offer', {
+    fetch('http://192.168.5.198:8080/offer', {
         method: 'POST',
         body: JSON.stringify({
             sdp: pc.localDescription.sdp,
