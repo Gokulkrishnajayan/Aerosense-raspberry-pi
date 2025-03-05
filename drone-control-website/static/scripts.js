@@ -337,3 +337,33 @@ document.addEventListener("DOMContentLoaded", function () {
         videoStream.src = "http://192.168.5.198:8000/video_feed?t=" + new Date().getTime();
     }, 1000); // Refresh every second
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const videoStream = document.getElementById("videoStream");
+    const body = document.body;
+
+    // Create a "No Video Feed" message
+    const noVideoMessage = document.createElement("div");
+    noVideoMessage.classList.add("no-video-message");
+    noVideoMessage.textContent = "No Video Feed Available";
+    document.body.appendChild(noVideoMessage);
+
+    function checkVideoStatus() {
+        fetch(videoStream.src, { method: "HEAD" })
+            .then(response => {
+                if (!response.ok) throw new Error("Video not available");
+
+                // Video is working, remove no-video styles
+                body.classList.remove("no-video");
+                noVideoMessage.style.display = "none";
+            })
+            .catch(() => {
+                // Video is not working, change background and show message
+                body.classList.add("no-video");
+                noVideoMessage.style.display = "block";
+            });
+    }
+
+    // Check video status every 5 seconds
+    setInterval(checkVideoStatus, 3000);
+});

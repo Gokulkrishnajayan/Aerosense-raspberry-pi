@@ -1,16 +1,17 @@
+/* Default black background */
 body {
+    background: black;
     margin: 0;
     padding: 0;
     height: 100vh;
     width: 100vw;
-    overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
 }
 
-/* Make the video background cover the entire screen */
+/* Video stream should be full screen */
 #videoStream {
     position: absolute;
     top: 0;
@@ -18,10 +19,29 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Ensures full screen coverage */
     z-index: -1;
-    /* Send video to the background */
 }
+
+/* When no video is available, change the entire screen */
+.no-video {
+    background: rgb(117, 111, 111) !important;  /* Change background to red or any color */
+}
+
+/* Display "No Video Feed" message */
+.no-video-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: white;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    display: none; /* Hide by default */
+}
+
 
 /* Buttons for Mobile (Top-Right Corner) */
 .controls-container {
@@ -80,6 +100,7 @@ button:hover {
     padding: 1rem;
     border-radius: 0.5rem;
     z-index: 1000;
+    color: aliceblue;
 }
 
 #orientation-warning {
@@ -152,6 +173,7 @@ button:hover {
     border-radius: 0.5rem;
     z-index: 1000;
     display: none;
+    color: aliceblue;
 }
 
 .active-command {
