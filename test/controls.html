@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drone Controls</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body onload="init()">
+
+    <div id="orientation-warning">
+        <h2>Please rotate your device to landscape mode!</h2>
+    </div>
+
+    <!-- Fullscreen Video Background -->
+    <img id="videoStream" src="http://192.168.5.198:8000/video_feed">
+
+    <!-- Controls -->
+    <div class="controls-container">
+        <button id="takeoffButton">Take Off</button>
+        <button id="landButton">Land</button>
+        <button id="emergencyButton">Emergency Stop</button>
+    </div>
+
+    <div id="telemetry">
+        <span>Lat: 0.0 | Lon: 0.0 | Alt: 0.0m | </span>
+        <span id="arm-status">Disarm</span>
+    </div>
+
+    <div class="joystick-container" id="joystick-container">
+        <div id="left-joystick" class="joystick">
+            <div class="joystick-handle"></div>
+        </div>
+        <div id="right-joystick" class="joystick">
+            <div class="joystick-handle"></div>
+        </div>
+    </div>
+
+    <div id="command-display">
+        Active Commands: 
+        <span id="active-commands"></span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+</body>
+</html>
