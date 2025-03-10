@@ -352,11 +352,8 @@ function checkVideoFeed() {
     const noVideoMessage = document.getElementById('no-video-message');
     
     if (videoStream && noVideoMessage) {
-        // Create a test image to see if the video feed is accessible
         const testImg = new Image();
         const timestamp = new Date().getTime();
-        
-        // Get the current host and port from the page
         const currentUrl = window.location.href;
         const urlParts = currentUrl.split('/');
         const baseUrl = urlParts[0] + '//' + urlParts[2];
@@ -364,14 +361,23 @@ function checkVideoFeed() {
         testImg.src = baseUrl + '/video_feed?t=' + timestamp;
         
         testImg.onload = function() {
-            // Video feed is working
             noVideoMessage.style.display = 'none';
+            videoStream.style.display = 'block'; // Ensure video is visible
         };
         
         testImg.onerror = function() {
-            // Video feed is not working
             noVideoMessage.style.display = 'block';
+            videoStream.style.display = 'none'; // Hide video on error
+            refreshVideoFeed(); // Attempt to reload
         };
+    }
+}
+
+// Update refreshVideoFeed function
+function refreshVideoFeed() {
+    const videoStream = document.getElementById('videoStream');
+    if (videoStream) {
+        videoStream.src = '/video_feed?t=' + new Date().getTime();
     }
 }
 

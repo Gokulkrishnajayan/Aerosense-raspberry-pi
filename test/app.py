@@ -8,6 +8,7 @@ import time
 import logging
 import os
 from picamera2 import Picamera2
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -37,6 +38,7 @@ def get_host_ip():
 # Initialize Pi Camera and frame handling
 frame = None
 lock = threading.Lock()
+picam2 = None
 
 def initialize_camera():
     global picam2, frame
@@ -52,7 +54,7 @@ def initialize_camera():
         logger.info("Camera initialized successfully")
         
         # Wait for camera to warm up
-        time.sleep(1)
+        time.sleep(2)
         
         # Capture an initial frame to avoid NoneType issues
         rgb = picam2.capture_array("main")
@@ -65,7 +67,7 @@ def initialize_camera():
         logger.info("Initial frame captured")
         return True
     except Exception as e:
-        logger.error(f"Camera initialization failed: {e}")
+        logger.error(f"Camera initialization failed: {e}", exc_info=True)
         return False
 
 # Capture frames in a background thread
@@ -105,11 +107,12 @@ def capture_frames():
                 
             time.sleep(0.033)  # ~30 FPS
         except Exception as e:
-            logger.error(f"Error capturing frame: {e}")
+            logger.error(f"Error capturing frame: {e}", exc_info=True)
             time.sleep(0.5)  # Pause briefly before retrying
 
 # Generate frames for streaming
 def generate_frames():
+    global frame
     while True:
         with lock:
             current_frame = frame
@@ -119,21 +122,61 @@ def generate_frames():
                    b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
         else:
             # If no frame is available, send a blank black frame
-            import numpy as np
-            blank = cv2.imencode('.jpg', 
-                                 np.zeros((360, 640, 3), dtype=np.uint8))[1].tobytes()
+            blank = np.zeros((360, 640, 3), dtype=np.uint8)
+            _, jpeg = cv2.imencode('.jpg', blank)
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + blank + b'\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
                    
         time.sleep(0.033)  # ~30 FPS
 
-# Video feed route - now directly in Flask instead of redirecting to FastAPI
+# Video feed route
 @app.route('/video_feed')
 def video_feed():
     return Response(
         generate_frames(), 
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )
+
+# Debug route for video feed
+@app.route('/debug_video')
+def debug_video():
+    global frame
+    with lock:
+        current_frame = frame
+    
+    if current_frame:
+        return f"""
+        <html>
+        <head>
+            <title>Video Feed Debug</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <h1>Video Feed Debug</h1>
+            <p>The video feed is working. You should see the image below:</p>
+            <img src="/video_feed" alt="Video Feed">
+            <p>Frame size: {len(current_frame)} bytes</p>
+        </body>
+        </html>
+        """
+    else:
+        return f"""
+        <html>
+        <head>
+            <title>Video Feed Debug</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <h1>Video Feed Debug</h1>
+            <p style="color: red">NO FRAMES AVAILABLE!</p>
+            <p>Camera may not be initialized correctly.</p>
+        </body>
+        </html>
+        """
 
 async def telemetry_task():
     while True:
@@ -161,7 +204,7 @@ def login():
 def controls():
     # Pass the host IP to the template for video feed URL
     host_ip = get_host_ip()
-    port = request.host.split(':')[1] if ':' in request.host else '5000'
+    port = request.host.split(':')[1] if ':' in request.host else '8000'
     return render_template('controls.html', host_ip=host_ip, port=port)
 
 @socketio.on('connect')
@@ -212,10 +255,12 @@ def handle_control(data):
 @app.route('/healthcheck')
 def healthcheck():
     camera_ok = frame is not None
+    uptime = time.time() - startup_time if 'startup_time' in globals() else 0
     return {
         "status": "healthy" if camera_ok else "unhealthy",
         "camera": "connected" if camera_ok else "disconnected",
-        "uptime": time.time() - startup_time
+        "uptime": uptime,
+        "frame_available": camera_ok
     }
 
 if __name__ == '__main__':
@@ -237,6 +282,7 @@ if __name__ == '__main__':
     
     host_ip = get_host_ip()
     print(f"Server running! Access the web interface at: http://{host_ip}:5000")
-    print(f"Video feed will be available at: http://{host_ip}:5000/video_feed")
+    print(f"Video feed will be available at: http://{host_ip}:8000/video_feed")
+    print(f"Debug video page available at: http://{host_ip}:8000/debug_video")
     
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)

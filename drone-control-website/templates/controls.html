@@ -15,7 +15,7 @@
 
     <!-- Video stream with overlay for status messages -->
     <div class="video-container">
-        <img id="videoStream" src="/video_feed" alt="Video Feed" onerror="handleVideoError()">
+        <img id="videoStream" src="{{ fastapi_url }}/video_feed" alt="Video Feed">
         <div id="video-overlay" class="video-overlay"></div>
         <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
         <div id="status-message" class="status-message"></div>
@@ -103,21 +103,13 @@
     </div>
 
     <script>
-    function handleVideoError() {
-        document.getElementById('no-video-message').style.display = 'block';
-        console.error('Failed to load video feed');
-        
-        // Try to reload the video feed after 3 seconds
-        setTimeout(function() {
-            refreshVideoFeed();
-        }, 3000);
-    }
-    
+    // Pass the FastAPI URL to JavaScript
+    const fastapiUrl = "{{ fastapi_url }}";
+
     function refreshVideoFeed() {
         const videoStream = document.getElementById('videoStream');
         if (videoStream) {
-            videoStream.src = '/video_feed?t=' + new Date().getTime();
-            console.log('Attempting to refresh video feed');
+            videoStream.src = fastapiUrl + '/video_feed?t=' + new Date().getTime();
         }
     }
     </script>

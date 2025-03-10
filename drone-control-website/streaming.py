@@ -13,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+
 # Add CORS middleware to allow requests from Flask app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development. Restrict in production
+    allow_origins=["*"],  # Allow all origins (for development only)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -105,15 +106,16 @@ def generate_frames():
         if current_frame:
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+            logger.info("Frame sent successfully")
         else:
             # If no frame is available, send a blank black frame
             blank = cv2.imencode('.jpg', 
                                  255 * np.ones((360, 640, 3), dtype=np.uint8))[1].tobytes()
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + blank + b'\r\n')
+            logger.warning("No frame available, sending blank frame")
                    
         time.sleep(0.033)  # ~30 FPS
-
 @app.get("/")
 def root():
     return {"message": "Video streaming server is running"}

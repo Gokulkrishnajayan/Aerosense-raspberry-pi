@@ -15,7 +15,7 @@
 
     <!-- Video stream with overlay for status messages -->
     <div class="video-container">
-        <img id="videoStream" src="http://{{ host_ip }}:{{ port }}/video_feed" alt="Video Feed">
+        <img id="videoStream" src="/video_feed" alt="Video Feed" onerror="handleVideoError()">
         <div id="video-overlay" class="video-overlay"></div>
         <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
         <div id="status-message" class="status-message"></div>
@@ -94,6 +94,33 @@
             </div>
         </div>
     </div>
+    
+    <!-- Add debugging button -->
+    <div id="debug-controls" style="position: fixed; bottom: 10px; right: 10px; z-index: 1000;">
+        <button id="refreshVideoBtn" style="padding: 5px 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="refreshVideoFeed()">
+            Refresh Video
+        </button>
+    </div>
+
+    <script>
+    function handleVideoError() {
+        document.getElementById('no-video-message').style.display = 'block';
+        console.error('Failed to load video feed');
+        
+        // Try to reload the video feed after 3 seconds
+        setTimeout(function() {
+            refreshVideoFeed();
+        }, 3000);
+    }
+    
+    function refreshVideoFeed() {
+        const videoStream = document.getElementById('videoStream');
+        if (videoStream) {
+            videoStream.src = '/video_feed?t=' + new Date().getTime();
+            console.log('Attempting to refresh video feed');
+        }
+    }
+    </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
