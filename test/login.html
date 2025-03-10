@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drone Login</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .login-box {
+            background: #222;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+        }
+        input, button {
+            padding: 0.5rem;
+            margin: 0.5rem;
+            border: none;
+            border-radius: 0.25rem;
+        }
+        button {
+            background: #444;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>Drone Control</h1>
+        <input type="password" id="password" placeholder="Enter Access Code">
+        <button onclick="login()">Unlock Drone</button>
+    </div>
+    <script>
+        function login() {
+            // TEMPORARY: Bypass password for testing
+            window.location.href = '/controls';
+        }
+    </script>
+</body>
+</html>

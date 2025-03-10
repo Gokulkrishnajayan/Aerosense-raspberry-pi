@@ -16,16 +16,17 @@ def initialize_camera():
         picam2 = Picamera2()
         print("Camera initialized successfully.")
 
-        # High-resolution configuration with sensor's native aspect ratio (16:9)
+        # Lower resolution configuration
         config = picam2.create_video_configuration(
             main={
-                "size": (1536, 864),  # Native sensor resolution
+                "size": (640, 360),  # Lower resolution for smoother WiFi streaming
                 "format": "XBGR8888"
             },
             controls={
-                "FrameDurationLimits": (33333, 33333),  # 30 FPS
+                "FrameDurationLimits": (50000, 50000),  # Limit FPS to ~20
                 "AwbEnable": True,
-                "AeEnable": True
+                "AeEnable": True,
+                "AfMode": 1
             }
         )
         picam2.configure(config)
@@ -41,13 +42,13 @@ def initialize_camera():
 def generate_frames():
     while True:
         try:
-            # Capture full sensor frame
+            # Capture frame
             rgb = picam2.capture_array("main")
             
             # Convert to BGR and encode
             bgr = cv2.cvtColor(rgb, cv2.COLOR_RGBA2BGR)
             _, jpeg = cv2.imencode('.jpg', bgr, 
-                                  [int(cv2.IMWRITE_JPEG_QUALITY), 85,
+                                  [int(cv2.IMWRITE_JPEG_QUALITY), 70,  # Reduce JPEG quality to 70
                                    int(cv2.IMWRITE_JPEG_OPTIMIZE), 1])
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
@@ -71,7 +72,7 @@ def index():
     return """
     <html>
       <head>
-        <title>Full Screen Camera Feed</title>
+        <title>Camera Feed</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <style>
             body {
