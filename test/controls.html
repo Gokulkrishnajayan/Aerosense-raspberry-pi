@@ -4,6 +4,7 @@
     <title>Drone Controls</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body onload="init()">
@@ -12,33 +13,86 @@
         <h2>Please rotate your device to landscape mode!</h2>
     </div>
 
-    <!-- Fullscreen Video Background -->
-    <img id="videoStream" src="http://192.168.5.198:8000/video_feed">
+    <!-- Video stream with overlay for status messages -->
+    <div class="video-container">
+        <img id="videoStream" src="http://{{ host_ip }}:{{ port }}/video_feed" alt="Video Feed">
+        <div id="video-overlay" class="video-overlay"></div>
+        <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
+        <div id="status-message" class="status-message"></div>
+    </div>
 
     <!-- Controls -->
     <div class="controls-container">
-        <button id="takeoffButton">Take Off</button>
-        <button id="landButton">Land</button>
-        <button id="emergencyButton">Emergency Stop</button>
+        <button id="takeoffButton" class="action-button takeoff-button">
+            <i class="fas fa-arrow-up"></i> Take Off
+        </button>
+        <button id="landButton" class="action-button land-button">
+            <i class="fas fa-arrow-down"></i> Land
+        </button>
+        <button id="emergencyButton" class="action-button emergency-button">
+            <i class="fas fa-exclamation-triangle"></i> Emergency
+        </button>
     </div>
 
-    <div id="telemetry">
-        <span>Lat: 0.0 | Lon: 0.0 | Alt: 0.0m | </span>
-        <span id="arm-status">Disarm</span>
+    <div id="telemetry" class="telemetry-panel">
+        <div class="telemetry-row">
+            <div class="telemetry-item"><i class="fas fa-map-marker-alt"></i> Lat: <span id="lat-value">0.0</span></div>
+            <div class="telemetry-item"><i class="fas fa-map-marker-alt"></i> Lon: <span id="lon-value">0.0</span></div>
+        </div>
+        <div class="telemetry-row">
+            <div class="telemetry-item"><i class="fas fa-arrows-alt-v"></i> Alt: <span id="alt-value">0.0</span>m</div>
+            <div class="telemetry-item">
+                <i class="fas fa-power-off"></i> <span id="arm-status" class="status-disarmed">Disarmed</span>
+            </div>
+        </div>
+        <div class="telemetry-row">
+            <div class="telemetry-item"><i class="fas fa-battery-three-quarters"></i> <span id="battery-value">85</span>%</div>
+            <div class="telemetry-item"><i class="fas fa-signal"></i> <span id="signal-value">98</span>%</div>
+        </div>
     </div>
 
     <div class="joystick-container" id="joystick-container">
         <div id="left-joystick" class="joystick">
+            <div class="joystick-label">Altitude & Yaw</div>
             <div class="joystick-handle"></div>
         </div>
         <div id="right-joystick" class="joystick">
+            <div class="joystick-label">Roll & Pitch</div>
             <div class="joystick-handle"></div>
         </div>
     </div>
 
     <div id="command-display">
-        Active Commands: 
+        <div class="command-label">Active Commands:</div>
         <span id="active-commands"></span>
+    </div>
+
+    <div id="keyboard-controls" class="keyboard-info">
+        <h3>Keyboard Controls:</h3>
+        <div class="keyboard-row">
+            <div class="key-item">Space: Arm</div>
+            <div class="key-item">Esc: Disarm</div>
+            <div class="key-item">T: Take Off</div>
+            <div class="key-item">L: Land</div>
+        </div>
+        <div class="keyboard-row">
+            <div class="key-item">W/S: Throttle Up/Down</div>
+            <div class="key-item">A/D: Yaw Left/Right</div>
+            <div class="key-item">Arrow Keys: Pitch/Roll</div>
+        </div>
+    </div>
+
+    <!-- Modal for connection issues -->
+    <div id="connection-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Connection Lost</h2>
+            </div>
+            <div class="modal-body">
+                <p>Connection to the drone has been lost. Attempting to reconnect...</p>
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>

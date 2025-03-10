@@ -1,101 +1,9 @@
-// // Login Page
-// document.getElementById('loginForm').addEventListener('submit', function (e) {
-//     e.preventDefault();
-//     const username = document.getElementById('username').value;
-//     const password = document.getElementById('password').value;
-
-//     // Hardcoded credentials for demo
-//     if (username === 'admin' && password === 'password') {
-//         window.location.href = 'main.html';
-//     } else {
-//         document.getElementById('errorMessage').textContent = 'Invalid username or password';
-//     }
-// });
-
-// // Main Page
-// if (window.location.pathname.endsWith('main.html')) {
-//     const connectButton = document.getElementById('connectButton');
-//     const connectionStatus = document.getElementById('connectionStatus');
-
-//     connectButton.addEventListener('click', function () {
-//         // Simulate connection to drone
-//         connectionStatus.textContent = 'Status: Connected';
-//         connectButton.disabled = true;
-//     });
-// }
-
-// // Control Interface
-// if (window.location.pathname.endsWith('control.html')) {
-//     const videoFeed = document.getElementById('videoFeed');
-//     const takeoffButton = document.getElementById('takeoffButton');
-//     const landButton = document.getElementById('landButton');
-//     const emergencyButton = document.getElementById('emergencyButton');
-
-//     // WebSocket connection to Raspberry Pi
-//     const socket = new WebSocket('ws://192.168.5.198:5000');
-
-//     socket.onopen = function () {
-//         console.log('WebSocket connection established');
-//     };
-
-//     socket.onmessage = function (event) {
-//         console.log('Message from server:', event.data);
-//     };
-
-//     // Video Streaming (WebRTC)
-//     const pc = new RTCPeerConnection();
-
-//     pc.ontrack = function (event) {
-//         videoFeed.srcObject = event.streams[0];
-//     };
-
-//     fetch('http://192.168.5.198:8080/offer', {
-//         method: 'POST',
-//         body: JSON.stringify({
-//             sdp: pc.localDescription.sdp,
-//             type: pc.localDescription.type
-//         })
-//     });
-
-//     // Drone Controls
-//     takeoffButton.addEventListener('click', function () {
-//         socket.send(JSON.stringify({ cmd: 'takeoff', params: { altitude: 5 } }));
-//     });
-
-//     landButton.addEventListener('click', function () {
-//         socket.send(JSON.stringify({ cmd: 'land' }));
-//     });
-
-//     emergencyButton.addEventListener('click', function () {
-//         socket.send(JSON.stringify({ cmd: 'emergency' }));
-//     });
-
-//     // Keyboard Controls
-//     document.addEventListener('keydown', function (event) {
-//         switch (event.key) {
-//             case 'ArrowUp':
-//                 socket.send(JSON.stringify({ cmd: 'move', params: { direction: 'forward', speed: 1 } }));
-//                 break;
-//             case 'ArrowDown':
-//                 socket.send(JSON.stringify({ cmd: 'move', params: { direction: 'backward', speed: 1 } }));
-//                 break;
-//             case 'ArrowLeft':
-//                 socket.send(JSON.stringify({ cmd: 'move', params: { direction: 'left', speed: 1 } }));
-//                 break;
-//             case 'ArrowRight':
-//                 socket.send(JSON.stringify({ cmd: 'move', params: { direction: 'right', speed: 1 } }));
-//                 break;
-//         }
-//     });
-// }
-
+// Global variables
 const socket = io();
 let lastCommand = Date.now();
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const activeCommands = new Set();
-const commandDisplay = document.getElementById('command-display');
-const activeCommandsSpan = document.getElementById('active-commands');
-const armStatus = document.getElementById('arm-status');
+let activeCommands = new Set();
+let connectionCheckInterval;
 
 function init() {
     // Add touch-device class to body if it's a touch device
@@ -103,12 +11,18 @@ function init() {
         document.body.classList.add('touch-device');
     }
 
+    // Setup video feed error handling
+    setupVideoFeedErrorHandling();
+
     // Request fullscreen on user interaction
     document.addEventListener('click', requestFullscreen);
     document.addEventListener('touchstart', requestFullscreen);
 
     // Lock orientation (works on some browsers)
     lockOrientation();
+
+    // Setup button handlers
+    setupButtonHandlers();
 
     // Initialize controls based on device type
     if (isTouchDevice) {
@@ -125,58 +39,148 @@ function init() {
         setupKeyboardControls();
     }
 
-    // Initialize telemetry
-    socket.on('telemetry', updateTelemetry);
+    // Initialize socket handlers
+    setupSocketHandlers();
+    
+    // Start connection monitoring
+    startConnectionMonitoring();
+}
+
+function setupButtonHandlers() {
+    const takeoffButton = document.getElementById('takeoffButton');
+    const landButton = document.getElementById('landButton');
+    const emergencyButton = document.getElementById('emergencyButton');
+    
+    if (takeoffButton) {
+        takeoffButton.addEventListener('click', () => {
+            socket.emit('control', 'takeoff');
+            showStatusMessage('Taking off...');
+        });
+    }
+    
+    if (landButton) {
+        landButton.addEventListener('click', () => {
+            socket.emit('control', 'land');
+            showStatusMessage('Landing...');
+        });
+    }
+    
+    if (emergencyButton) {
+        emergencyButton.addEventListener('click', () => {
+            socket.emit('control', 'disarm');
+            showStatusMessage('EMERGENCY STOP!');
+        });
+    }
+}
+
+function setupVideoFeedErrorHandling() {
+    const videoStream = document.getElementById("videoStream");
+    const noVideoMessage = document.getElementById("no-video-message");
+    
+    if (videoStream) {
+        videoStream.onerror = function() {
+            if (noVideoMessage) noVideoMessage.style.display = "block";
+        };
+        
+        videoStream.onload = function() {
+            if (noVideoMessage) noVideoMessage.style.display = "none";
+        };
+    }
+}
+
+function showStatusMessage(message) {
+    const statusMessage = document.getElementById('status-message');
+    if (statusMessage) {
+        statusMessage.textContent = message;
+        statusMessage.style.opacity = 1;
+        
+        setTimeout(() => {
+            statusMessage.style.opacity = 0;
+        }, 3000);
+    }
 }
 
 function setupKeyboardControls() {
-    document.addEventListener('keydown', handleKeyboardControls);
-    document.addEventListener('keyup', stopControls);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
 }
 
-function updateCommandDisplay() {
-    const commands = Array.from(activeCommands);
-    activeCommandsSpan.innerHTML = commands.map(cmd =>
-        `<span class="active-command">${cmd}</span>`
-    ).join('');
-    commandDisplay.style.display = commands.length ? 'block' : 'none';
-}
-
-function handleKeyboardControls(e) {
+function handleKeyDown(e) {
     if (Date.now() - lastCommand < 50) return;
     lastCommand = Date.now();
 
-    const commandMap = {
-        87: { cmd: '↑ Throttle Up', code: 'up' },
-        83: { cmd: '↓ Throttle Down', code: 'down' },
-        65: { cmd: '← Left', code: 'left' },
-        68: { cmd: '→ Right', code: 'right' },
-        38: { cmd: '↑ Pitch Forward', code: 'forward' },
-        40: { cmd: '↓ Pitch Backward', code: 'backward' },
-        32: { cmd: 'Arm', code: 'arm' },
-        27: { cmd: 'Disarm', code: 'disarm' }
+    // Key mappings
+    const keyActions = {
+        // Arm/Disarm
+        ' ': { cmd: 'Arm', code: 'arm' },
+        'Escape': { cmd: 'Disarm', code: 'disarm' },
+        // Takeoff/Land
+        't': { cmd: 'Takeoff', code: 'takeoff' },
+        'l': { cmd: 'Land', code: 'land' },
+        // Throttle/Yaw (left joystick)
+        'w': { cmd: '↑ Throttle Up', code: 'throttle_up' },
+        's': { cmd: '↓ Throttle Down', code: 'throttle_down' },
+        'a': { cmd: '← Yaw Left', code: 'yaw_left' },
+        'd': { cmd: '→ Yaw Right', code: 'yaw_right' },
+        // Pitch/Roll (right joystick)
+        'ArrowUp': { cmd: '↑ Pitch Forward', code: 'pitch_forward' },
+        'ArrowDown': { cmd: '↓ Pitch Backward', code: 'pitch_backward' },
+        'ArrowLeft': { cmd: '← Roll Left', code: 'roll_left' },
+        'ArrowRight': { cmd: '→ Roll Right', code: 'roll_right' }
     };
 
-    const commandInfo = commandMap[e.keyCode];
-    if (commandInfo) {
-        activeCommands.add(commandInfo.cmd);
+    const key = e.key;
+    if (keyActions[key]) {
+        activeCommands.add(keyActions[key].cmd);
         updateCommandDisplay();
-
-        if (typeof commandInfo === 'object') {
-            socket.emit('control', { type: 'keyboard', ...commandInfo });
-        }
+        socket.emit('control', { type: 'keyboard', code: keyActions[key].code });
         e.preventDefault();
     }
 }
 
-function stopControls() {
-    activeCommands.clear();
-    updateCommandDisplay();
-    socket.emit('control', { type: 'keyboard', x: 0, y: 0 });
+function handleKeyUp(e) {
+    // Key mappings - same as in handleKeyDown
+    const keyActions = {
+        ' ': { cmd: 'Arm', code: 'arm' },
+        'Escape': { cmd: 'Disarm', code: 'disarm' },
+        't': { cmd: 'Takeoff', code: 'takeoff' },
+        'l': { cmd: 'Land', code: 'land' },
+        'w': { cmd: '↑ Throttle Up', code: 'throttle_up' },
+        's': { cmd: '↓ Throttle Down', code: 'throttle_down' },
+        'a': { cmd: '← Yaw Left', code: 'yaw_left' },
+        'd': { cmd: '→ Yaw Right', code: 'yaw_right' },
+        'ArrowUp': { cmd: '↑ Pitch Forward', code: 'pitch_forward' },
+        'ArrowDown': { cmd: '↓ Pitch Backward', code: 'pitch_backward' },
+        'ArrowLeft': { cmd: '← Roll Left', code: 'roll_left' },
+        'ArrowRight': { cmd: '→ Roll Right', code: 'roll_right' }
+    };
+
+    const key = e.key;
+    if (keyActions[key]) {
+        activeCommands.delete(keyActions[key].cmd);
+        updateCommandDisplay();
+        // Optionally send a 'stop' command for this control
+        socket.emit('control', { type: 'keyboard', code: 'stop_' + keyActions[key].code });
+    }
+}
+
+function updateCommandDisplay() {
+    const commandDisplay = document.getElementById('command-display');
+    const activeCommandsSpan = document.getElementById('active-commands');
+    
+    if (commandDisplay && activeCommandsSpan) {
+        const commands = Array.from(activeCommands);
+        activeCommandsSpan.innerHTML = commands.map(cmd =>
+            `<span class="active-command">${cmd}</span>`
+        ).join('');
+        commandDisplay.style.display = commands.length ? 'block' : 'none';
+    }
 }
 
 function setupJoystick(id, callback, options = { selfCenterX: true, selfCenterY: true }) {
     const joystick = document.getElementById(id);
+    if (!joystick) return;
+    
     const handle = joystick.querySelector('.joystick-handle');
     const maxDistance = 30;
     let touchId = null;
@@ -276,6 +280,101 @@ function setupJoystick(id, callback, options = { selfCenterX: true, selfCenterY:
     });
 }
 
+function setupSocketHandlers() {
+    // Listen for telemetry updates
+    socket.on('telemetry', updateTelemetry);
+    
+    // Listen for arm/disarm status
+    socket.on('arm', updateArmStatus);
+    
+    // Listen for status messages
+    socket.on('status', showStatusMessage);
+    
+    // Handle connection events
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+}
+
+function updateTelemetry(data) {
+    // Update telemetry display with data from server
+    document.getElementById('lat-value').textContent = data.lat.toFixed(6);
+    document.getElementById('lon-value').textContent = data.lon.toFixed(6);
+    document.getElementById('alt-value').textContent = data.alt.toFixed(1);
+    document.getElementById('battery-value').textContent = Math.round(data.battery);
+    document.getElementById('signal-value').textContent = Math.round(data.signal);
+    
+    // Update arm status
+    updateArmStatus(data.armed);
+}
+
+function updateArmStatus(armed) {
+    const armStatus = document.getElementById('arm-status');
+    if (armStatus) {
+        if (armed) {
+            armStatus.textContent = 'Armed';
+            armStatus.className = 'status-armed';
+        } else {
+            armStatus.textContent = 'Disarmed';
+            armStatus.className = 'status-disarmed';
+        }
+    }
+}
+
+function handleConnect() {
+    console.log('Connected to server');
+    hideConnectionModal();
+}
+
+function handleDisconnect() {
+    console.log('Disconnected from server');
+    showConnectionModal();
+}
+
+function showConnectionModal() {
+    const modal = document.getElementById('connection-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function hideConnectionModal() {
+    const modal = document.getElementById('connection-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function startConnectionMonitoring() {
+    // Check video stream health periodically
+    connectionCheckInterval = setInterval(() => {
+        checkVideoFeed();
+    }, 3000);
+}
+
+function checkVideoFeed() {
+    const videoStream = document.getElementById('videoStream');
+    const noVideoMessage = document.getElementById('no-video-message');
+    
+    if (videoStream && noVideoMessage) {
+        // Create a test image to see if the video feed is accessible
+        const testImg = new Image();
+        const timestamp = new Date().getTime();
+        
+        // Get the current host and port from the page
+        const currentUrl = window.location.href;
+        const urlParts = currentUrl.split('/');
+        const baseUrl = urlParts[0] + '//' + urlParts[2];
+        
+        testImg.src = baseUrl + '/video_feed?t=' + timestamp;
+        
+        testImg.onload = function() {
+            // Video feed is working
+            noVideoMessage.style.display = 'none';
+        };
+        
+        testImg.onerror = function() {
+            // Video feed is not working
+            noVideoMessage.style.display = 'block';
+        };
+    }
+}
+
 function requestFullscreen() {
     try {
         const elem = document.documentElement;
@@ -305,65 +404,5 @@ function lockOrientation() {
     }
 }
 
-function updateTelemetry(data) {
-    document.getElementById('telemetry').innerHTML =
-        `Lat: ${data.lat.toFixed(6)} | Lon: ${data.lon.toFixed(6)} | Alt: ${data.alt.toFixed(1)}m | `;
-
-    if (data.armed) {
-        armStatus.textContent = 'Arm';
-        armStatus.classList.add('armed');
-    } else {
-        armStatus.textContent = 'Disarm';
-        armStatus.classList.remove('armed');
-    }
-}
-
-// Listen for arm/disarm responses
-socket.on('arm', (armed) => {
-    if (armed) {
-        armStatus.textContent = 'Arm';
-        armStatus.classList.add('armed');
-    } else {
-        armStatus.textContent = 'Disarm';
-        armStatus.classList.remove('armed');
-    }
-});
-
-
-document.addEventListener("DOMContentLoaded", function () {
-    const videoStream = document.getElementById("videoStream");
-    // Reload the image every second to ensure smooth updates
-    setInterval(() => {
-        videoStream.src = "http://192.168.5.198:8000/video_feed?t=" + new Date().getTime();
-    }, 1000); // Refresh every second
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-    const videoStream = document.getElementById("videoStream");
-    const body = document.body;
-
-    // Create a "No Video Feed" message
-    const noVideoMessage = document.createElement("div");
-    noVideoMessage.classList.add("no-video-message");
-    noVideoMessage.textContent = "No Video Feed Available";
-    document.body.appendChild(noVideoMessage);
-
-    function checkVideoStatus() {
-        fetch(videoStream.src, { method: "HEAD" })
-            .then(response => {
-                if (!response.ok) throw new Error("Video not available");
-
-                // Video is working, remove no-video styles
-                body.classList.remove("no-video");
-                noVideoMessage.style.display = "none";
-            })
-            .catch(() => {
-                // Video is not working, change background and show message
-                body.classList.add("no-video");
-                noVideoMessage.style.display = "block";
-            });
-    }
-
-    // Check video status every 5 seconds
-    setInterval(checkVideoStatus, 3000);
-});
+// Initialize when the DOM is fully loaded
+document.addEventListener("DOMContentLoaded", init);
