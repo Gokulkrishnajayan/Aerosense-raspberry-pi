@@ -35,9 +35,12 @@ body {
 
 /* Video container and stream styling */
 .video-container {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
+    z-index: 1; /* Ensure video is below controls but above background */
 }
 
 #videoStream {
@@ -199,18 +202,17 @@ body {
     color: var(--text-light);
 }
 
-/* Joysticks */
-.joystick-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
+/* Hide joysticks by default (they will be enabled via touch-device class) */
+#joystick-container {
+    display: none;
 }
 
 .joystick {
     display: none;
     position: fixed;
-    width: 150px;
-    height: 150px;
+    bottom: 20px;
+    width: 120px;
+    height: 120px;
     background: rgba(255, 255, 255, 0.1);
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
@@ -241,13 +243,11 @@ body {
 }
 
 #left-joystick {
-    bottom: 100px;
-    left: 100px;
+    left: 20px;
 }
 
 #right-joystick {
-    bottom: 100px;
-    right: 100px;
+    right: 20px;
 }
 
 .touch-device .joystick {
@@ -310,8 +310,8 @@ body {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* Show keyboard info on non-touch devices */
-body:not(.touch-device) .keyboard-info {
+/* Show joysticks only for touch devices */
+body.touch-device #joystick-container {
     display: block;
 }
 

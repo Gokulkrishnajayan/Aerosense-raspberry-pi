@@ -1,7 +1,12 @@
 // Global variables
 const socket = io();
 let lastCommand = Date.now();
-const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+// Improved touch detection
+const isTouchDevice = (
+    'ontouchstart' in window || 
+    navigator.maxTouchPoints > 0 || 
+    navigator.msMaxTouchPoints > 0
+) && !window.matchMedia("(pointer: fine)").matches; // Exclude devices with precise pointers (e.g., desktops)
 let activeCommands = new Set();
 let connectionCheckInterval;
 
@@ -9,21 +14,7 @@ function init() {
     // Add touch-device class to body if it's a touch device
     if (isTouchDevice) {
         document.body.classList.add('touch-device');
-    }
-
-    // Request fullscreen on user interaction
-    document.addEventListener('click', requestFullscreen);
-    document.addEventListener('touchstart', requestFullscreen);
-
-    // Lock orientation (works on some browsers)
-    lockOrientation();
-
-    // Setup button handlers
-    setupButtonHandlers();
-
-    // Initialize controls based on device type
-    if (isTouchDevice) {
-        // Initialize joysticks for touch devices
+        // Initialize joysticks only for touch devices
         setupJoystick('left-joystick', (x, y) => {
             socket.emit('control', { type: 'left-joystick', x, y });
         }, { selfCenterX: true, selfCenterY: false });
@@ -32,6 +23,8 @@ function init() {
             socket.emit('control', { type: 'right-joystick', x, y });
         }, { selfCenterX: true, selfCenterY: true });
     } else {
+        // Hide joystick container explicitly
+        document.getElementById('joystick-container').style.display = 'none';
         // Initialize keyboard controls for non-touch devices
         setupKeyboardControls();
     }

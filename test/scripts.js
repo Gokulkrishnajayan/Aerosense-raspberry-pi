@@ -11,9 +11,6 @@ function init() {
         document.body.classList.add('touch-device');
     }
 
-    // Setup video feed error handling
-    setupVideoFeedErrorHandling();
-
     // Request fullscreen on user interaction
     document.addEventListener('click', requestFullscreen);
     document.addEventListener('touchstart', requestFullscreen);
@@ -70,21 +67,6 @@ function setupButtonHandlers() {
             socket.emit('control', 'disarm');
             showStatusMessage('EMERGENCY STOP!');
         });
-    }
-}
-
-function setupVideoFeedErrorHandling() {
-    const videoStream = document.getElementById("videoStream");
-    const noVideoMessage = document.getElementById("no-video-message");
-    
-    if (videoStream) {
-        videoStream.onerror = function() {
-            if (noVideoMessage) noVideoMessage.style.display = "block";
-        };
-        
-        videoStream.onload = function() {
-            if (noVideoMessage) noVideoMessage.style.display = "none";
-        };
     }
 }
 
@@ -354,30 +336,28 @@ function checkVideoFeed() {
     if (videoStream && noVideoMessage) {
         const testImg = new Image();
         const timestamp = new Date().getTime();
-        const currentUrl = window.location.href;
-        const urlParts = currentUrl.split('/');
-        const baseUrl = urlParts[0] + '//' + urlParts[2];
         
-        testImg.src = baseUrl + '/video_feed?t=' + timestamp;
+        // Use the FastAPI URL passed from the template
+        testImg.src = fastapiUrl + '/video_feed?t=' + timestamp;
         
         testImg.onload = function() {
             noVideoMessage.style.display = 'none';
             videoStream.style.display = 'block'; // Ensure video is visible
+            videoStream.src = testImg.src; // Update the video stream source
         };
         
         testImg.onerror = function() {
             noVideoMessage.style.display = 'block';
             videoStream.style.display = 'none'; // Hide video on error
-            refreshVideoFeed(); // Attempt to reload
+            setTimeout(refreshVideoFeed, 3000); // Retry after 3 seconds
         };
     }
 }
 
-// Update refreshVideoFeed function
 function refreshVideoFeed() {
     const videoStream = document.getElementById('videoStream');
     if (videoStream) {
-        videoStream.src = '/video_feed?t=' + new Date().getTime();
+        videoStream.src = '{{ fastapi_url }}/video_feed?t=' + new Date().getTime();
     }
 }
 
@@ -401,9 +381,13 @@ function requestFullscreen() {
 function lockOrientation() {
     try {
         if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape');
+            screen.orientation.lock('landscape').catch((error) => {
+                console.log("Orientation lock failed:", error);
+            });
         } else if (window.screen.lockOrientation) {
             window.screen.lockOrientation('landscape');
+        } else {
+            console.log("Orientation lock not supported on this device.");
         }
     } catch (e) {
         console.log("Orientation lock failed:", e);
