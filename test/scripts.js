@@ -2,18 +2,25 @@
 const socket = io();
 let lastCommand = Date.now();
 // Improved touch detection
-const isTouchDevice = (
-    'ontouchstart' in window || 
-    navigator.maxTouchPoints > 0 || 
-    navigator.msMaxTouchPoints > 0
-) && !window.matchMedia("(pointer: fine)").matches; // Exclude devices with precise pointers (e.g., desktops)
-let activeCommands = new Set();
-let connectionCheckInterval;
+const isTouchDevice = () => {
+    return (
+        ('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        (navigator.msMaxTouchPoints > 0) ||
+        (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent))
+    );
+};
 
 function init() {
+    // Check if it's a touch device
+    const touchDevice = isTouchDevice();
+    setTimeout(updateDebugPanel, 2000);
+    
     // Add touch-device class to body if it's a touch device
-    if (isTouchDevice) {
+    if (touchDevice) {
         document.body.classList.add('touch-device');
+        console.log("Touch device detected");
+        
         // Initialize joysticks only for touch devices
         setupJoystick('left-joystick', (x, y) => {
             socket.emit('control', { type: 'left-joystick', x, y });
@@ -22,12 +29,21 @@ function init() {
         setupJoystick('right-joystick', (x, y) => {
             socket.emit('control', { type: 'right-joystick', x, y });
         }, { selfCenterX: true, selfCenterY: true });
+        
+        // Make joysticks visible explicitly
+        document.getElementById('joystick-container').style.display = 'block';
     } else {
         // Hide joystick container explicitly
         document.getElementById('joystick-container').style.display = 'none';
+        console.log("Desktop device detected");
         // Initialize keyboard controls for non-touch devices
         setupKeyboardControls();
+        // Show keyboard info
+        document.getElementById('keyboard-controls').style.display = 'block';
     }
+
+    // Initialize button handlers
+    setupButtonHandlers();
 
     // Initialize socket handlers
     setupSocketHandlers();
@@ -173,10 +189,10 @@ function setupJoystick(id, callback, options = { selfCenterX: true, selfCenterY:
         };
     }
 
-    function handleMove(touch) {
+    function handleMove(clientX, clientY) {
         const center = getCenter();
-        const rawX = touch.clientX - center.x;
-        const rawY = touch.clientY - center.y;
+        const rawX = clientX - center.x;
+        const rawY = clientY - center.y;
         const distance = Math.sqrt(rawX * rawX + rawY * rawY);
 
         // Calculate actual position without capping
@@ -230,27 +246,56 @@ function setupJoystick(id, callback, options = { selfCenterX: true, selfCenterY:
         callback(scaledX, scaledY);
     }
 
+    // Touch events
     joystick.addEventListener('touchstart', e => {
+        e.preventDefault(); // Prevent scrolling
         if (!touchId) {
             touchId = e.changedTouches[0].identifier;
-            handleMove(e.changedTouches[0]);
+            handleMove(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
         }
     }, { passive: false });
 
     joystick.addEventListener('touchmove', e => {
+        e.preventDefault(); // Prevent scrolling
         if (touchId !== null) {
-            const touch = Array.from(e.touches).find(t => t.identifier === touchId);
-            if (touch) {
-                handleMove(touch);
-                e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === touchId) {
+                    handleMove(e.touches[i].clientX, e.touches[i].clientY);
+                    break;
+                }
             }
         }
     }, { passive: false });
 
     joystick.addEventListener('touchend', e => {
-        if (touchId !== null) {
+        e.preventDefault(); // Prevent default behavior
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === touchId) {
+                resetHandle();
+                touchId = null;
+                break;
+            }
+        }
+    }, { passive: false });
+
+    // Also add mouse events for testing on desktop
+    let mouseDown = false;
+    
+    joystick.addEventListener('mousedown', e => {
+        mouseDown = true;
+        handleMove(e.clientX, e.clientY);
+    });
+    
+    document.addEventListener('mousemove', e => {
+        if (mouseDown) {
+            handleMove(e.clientX, e.clientY);
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (mouseDown) {
+            mouseDown = false;
             resetHandle();
-            touchId = null;
         }
     });
 }
@@ -326,31 +371,37 @@ function checkVideoFeed() {
     const videoStream = document.getElementById('videoStream');
     const noVideoMessage = document.getElementById('no-video-message');
     
-    if (videoStream && noVideoMessage) {
-        const testImg = new Image();
-        const timestamp = new Date().getTime();
-        
-        // Use the FastAPI URL passed from the template
-        testImg.src = fastapiUrl + '/video_feed?t=' + timestamp;
-        
-        testImg.onload = function() {
-            noVideoMessage.style.display = 'none';
-            videoStream.style.display = 'block'; // Ensure video is visible
-            videoStream.src = testImg.src; // Update the video stream source
-        };
-        
-        testImg.onerror = function() {
-            noVideoMessage.style.display = 'block';
-            videoStream.style.display = 'none'; // Hide video on error
-            setTimeout(refreshVideoFeed, 3000); // Retry after 3 seconds
-        };
+    // If on a mobile device, simply show the video and do not override it.
+    if (isTouchDevice()) {
+        noVideoMessage.style.display = 'none';
+        videoStream.style.display = 'block';
+        return;
     }
+    
+    const testImg = new Image();
+    const timestamp = new Date().getTime();
+    
+    testImg.src = fastapiUrl + '/video_feed?t=' + timestamp;
+    
+    testImg.onload = function() {
+        noVideoMessage.style.display = 'none';
+        videoStream.style.display = 'block';
+        // Optionally, you could update the src—but often doing so resets the MJPEG stream.
+        // videoStream.src = testImg.src;
+    };
+
+    testImg.onerror = function() {
+        noVideoMessage.style.display = 'block';
+        videoStream.style.display = 'none';
+        setTimeout(refreshVideoFeed, 3000);
+    };
 }
+
 
 function refreshVideoFeed() {
     const videoStream = document.getElementById('videoStream');
     if (videoStream) {
-        videoStream.src = '{{ fastapi_url }}/video_feed?t=' + new Date().getTime();
+        videoStream.src = fastapiUrl + '/video_feed?t=' + new Date().getTime();
     }
 }
 
@@ -386,6 +437,18 @@ function lockOrientation() {
         console.log("Orientation lock failed:", e);
     }
 }
+
+function updateDebugPanel() {
+    const videoElement = document.getElementById('videoStream');
+    // For MJPEG streams, you might not rely on the 'complete' property.
+    const videoStatus = isTouchDevice() ? 'Streaming' : (videoElement.complete ? 'Loaded' : 'Not loaded');
+    
+    document.getElementById('debug-video').textContent = videoStatus;
+    document.getElementById('debug-device-type').textContent = isTouchDevice() ? 'Touch Device' : 'Desktop Device';
+    document.getElementById('debug-socket').textContent = socket.connected ? 'Connected' : 'Disconnected';
+    document.getElementById('debug-status').textContent = 'Running';
+}
+
 
 // Initialize when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", init);

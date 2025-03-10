@@ -5,6 +5,7 @@ from picamera2 import Picamera2
 import threading
 import time
 import cv2
+import numpy as np 
 import logging
 
 # Configure logging
@@ -14,13 +15,14 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 
-# Add CORS middleware to allow requests from Flask app
+# Update the CORS middleware configuration to be more specific
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (for development only)
+    allow_origins=["*"],  # You can restrict this to specific domains in production
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Content-Length"],
 )
 
 # Shared global frame buffer
@@ -120,11 +122,18 @@ def generate_frames():
 def root():
     return {"message": "Video streaming server is running"}
 
+# Update the video_feed function to add headers that help mobile browsers
 @app.get("/video_feed")
 def video_feed():
     return StreamingResponse(
         generate_frames(), 
-        media_type="multipart/x-mixed-replace; boundary=frame"
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Access-Control-Allow-Origin": "*"
+        }
     )
 
 @app.get("/healthcheck")

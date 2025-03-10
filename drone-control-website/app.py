@@ -1,5 +1,6 @@
 from flask import Flask, render_template, Response, request
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import random
 import time
 import logging

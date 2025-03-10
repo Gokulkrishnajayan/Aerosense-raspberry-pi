@@ -13,8 +13,8 @@
         <h2>Please rotate your device to landscape mode!</h2>
     </div>
 
-    <!-- Video stream with overlay for status messages -->
-    <div class="video-container">
+     <!-- Video stream -->
+     <div class="video-container">
         <img id="videoStream" src="{{ fastapi_url }}/video_feed" alt="Video Feed">
         <div id="video-overlay" class="video-overlay"></div>
         <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
@@ -101,20 +101,20 @@
             Refresh Video
         </button>
     </div>
-
     <script>
-    // Pass the FastAPI URL to JavaScript
-    const fastapiUrl = "{{ fastapi_url }}";
-
-    function refreshVideoFeed() {
-        const videoStream = document.getElementById('videoStream');
-        if (videoStream) {
-            videoStream.src = fastapiUrl + '/video_feed?t=' + new Date().getTime();
-        }
-    }
+        const fastapiUrl = "{{ fastapi_url }}";
     </script>
-
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+
+    <!-- Debug Panel -->
+    <div id="debug-panel" style="position: fixed; left: 10px; bottom: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; z-index: 1000; font-size: 12px; max-width: 300px; max-height: 150px; overflow: auto;">
+    <div>Status: <span id="debug-status">Initializing...</span></div>
+    <div>Device: <span id="debug-device-type">Unknown</span></div>
+    <div>Socket: <span id="debug-socket">Not connected</span></div>
+    <div>Video: <span id="debug-video">Not loaded</span></div>
+    <button onclick="document.getElementById('debug-panel').style.display='none'">Close</button>
+</div>
 </body>
 </html>
