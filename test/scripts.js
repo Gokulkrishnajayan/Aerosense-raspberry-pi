@@ -48,9 +48,6 @@ function init() {
     // Set up full-screen functionality
     setupFullscreen();
 
-    // Set up full-screen listeners
-    setupFullscreenListeners();
-
     // Set up mode switch
     setupModeSwitch();
     
@@ -71,6 +68,8 @@ function init() {
         document.getElementById('joystick-container').style.display = 'none';
         // Initialize keyboard controls for non-touch devices
         setupKeyboardControls();
+        // Show keyboard info for non-touch devices
+        document.getElementById('keyboard-controls').style.display = 'block';
     }
 
     // Initialize socket handlers
@@ -477,8 +476,12 @@ function startConnectionMonitoring() {
 // Function to enter full-screen mode
 function enterFullscreen() {
     const body = document.body;
-
-    if (!document.fullscreenElement) {
+    
+    if (!document.fullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.msFullscreenElement) {
+        
         if (body.requestFullscreen) {
             body.requestFullscreen();
         } else if (body.mozRequestFullScreen) { // Firefox
@@ -488,35 +491,10 @@ function enterFullscreen() {
         } else if (body.msRequestFullscreen) { // IE/Edge
             body.msRequestFullscreen();
         }
+        
+        console.log("Entering fullscreen mode");
     }
 }
-
-// Function to enter full-screen mode
-function enterFullscreen() {
-    const body = document.body;
-
-    if (!document.fullscreenElement) {
-        if (body.requestFullscreen) {
-            body.requestFullscreen();
-        } else if (body.mozRequestFullScreen) { // Firefox
-            body.mozRequestFullScreen();
-        } else if (body.webkitRequestFullscreen) { // Chrome, Safari, Opera
-            body.webkitRequestFullscreen();
-        } else if (body.msRequestFullscreen) { // IE/Edge
-            body.msRequestFullscreen();
-        }
-    }
-}
-
-// Add touchstart event listener to enter full-screen mode
-function setupFullscreen() {
-    const videoContainer = document.querySelector('.video-container');
-
-    if (videoContainer) {
-        videoContainer.addEventListener('touchstart', enterFullscreen, { once: true });
-    }
-}
-
 
 // Function to exit full-screen mode
 function exitFullscreen() {
@@ -529,11 +507,36 @@ function exitFullscreen() {
     } else if (document.msExitFullscreen) { // IE/Edge
         document.msExitFullscreen();
     }
+    
+    console.log("Exiting fullscreen mode");
+}
+
+// Add touchstart and click event listeners to enter full-screen mode
+function setupFullscreen() {
+    const videoContainer = document.querySelector('.video-container');
+
+    if (videoContainer) {
+        // For touch devices
+        videoContainer.addEventListener('touchstart', function() {
+            enterFullscreen();
+        });
+        
+        // For mouse clicks
+        videoContainer.addEventListener('click', function() {
+            enterFullscreen();
+        });
+        
+        console.log("Full-screen event listeners set up");
+
+    }
 }
 
 // Handle back button press on mobile devices
 function handleBackButton() {
-    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+    if (document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.mozFullScreenElement || 
+        document.msFullscreenElement) {
         exitFullscreen();
     }
 }
@@ -545,18 +548,48 @@ function handleEscKey(event) {
     }
 }
 
-// Add event listeners for back button and Esc key
+// Add event listeners for fullscreen changes
 function setupFullscreenListeners() {
+    // Listen for fullscreen change events
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
     // Listen for back button on mobile
     if (window.history && window.history.pushState) {
         window.addEventListener('popstate', handleBackButton);
     }
-
-    // Listen for Esc key on desktop
-    document.addEventListener('keydown', handleEscKey);
+    
+    console.log("Fullscreen change listeners set up");
 }
 
-
+function handleFullscreenChange() {
+    const isFullScreen = !!(document.fullscreenElement || 
+                           document.webkitFullscreenElement || 
+                           document.mozFullScreenElement || 
+                           document.msFullscreenElement);
+    
+    const videoContainer = document.querySelector('.video-container');
+    if (videoContainer) {
+        if (isFullScreen) {
+            // Mobile-specific adjustments
+            if (isTouchDevice) {
+                videoContainer.style.paddingBottom = '0';
+                videoContainer.style.height = '100%';
+                videoContainer.style.width = '100%';
+                document.getElementById('videoStream').style.objectFit = 'cover';
+            }
+        } else {
+            // Reset to original values
+            if (isTouchDevice) {
+                videoContainer.style.paddingBottom = '56.25%';
+                videoContainer.style.height = '';
+                document.getElementById('videoStream').style.objectFit = 'contain';
+            }
+        }
+    }
+}
 
 // Add mode switch functionality
 function setupModeSwitch() {
@@ -570,7 +603,6 @@ function setupModeSwitch() {
         });
     }
 }
-
 
 // Initialize when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", init);
