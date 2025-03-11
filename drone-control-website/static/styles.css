@@ -285,8 +285,9 @@ body {
     color: var(--primary-color);
 }
 
-/* Keyboard info panel */
+/* Hide the keyboard control panel by default */
 .keyboard-info {
+    display: none;
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -294,7 +295,6 @@ body {
     padding: 15px;
     border-radius: 10px;
     max-width: 400px;
-    display: none;
 }
 
 .keyboard-row {
@@ -549,7 +549,7 @@ body:fullscreen {
 }
 
 .mode-select:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.8);
 }
 
 

@@ -68,8 +68,8 @@ function init() {
         document.getElementById('joystick-container').style.display = 'none';
         // Initialize keyboard controls for non-touch devices
         setupKeyboardControls();
-        // Show keyboard info for non-touch devices
-        document.getElementById('keyboard-controls').style.display = 'block';
+        // Remove this line to hide the keyboard control panel by default
+        // document.getElementById('keyboard-controls').style.display = 'block';
     }
 
     // Initialize socket handlers
@@ -603,6 +603,25 @@ function setupModeSwitch() {
         });
     }
 }
+
+// Add this function to toggle the keyboard control panel
+function toggleKeyboardControls() {
+    const keyboardControls = document.getElementById('keyboard-controls');
+    if (keyboardControls) {
+        if (keyboardControls.style.display === 'none' || keyboardControls.style.display === '') {
+            keyboardControls.style.display = 'block'; // Show the panel
+        } else {
+            keyboardControls.style.display = 'none'; // Hide the panel
+        }
+    }
+}
+
+// Add this event listener for the 'h' key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'h' || e.key === 'H') { // Check if 'h' or 'H' is pressed
+        toggleKeyboardControls(); // Toggle the keyboard control panel
+    }
+});
 
 // Initialize when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", init);
