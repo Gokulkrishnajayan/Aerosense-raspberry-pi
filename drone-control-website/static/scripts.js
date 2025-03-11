@@ -9,6 +9,9 @@ const isTouchDevice = (
 ) && !window.matchMedia("(pointer: fine)").matches; // Exclude devices with precise pointers (e.g., desktops)
 let activeCommands = new Set();
 let connectionCheckInterval;
+let videoCheckInterval;
+let videoRetryCount = 0;
+const MAX_VIDEO_RETRIES = 5;
 
 function init() {
     // Add touch-device class to body if it's a touch device
@@ -32,14 +35,115 @@ function init() {
     // Initialize socket handlers
     setupSocketHandlers();
     
+    // Initialize button handlers
+    setupButtonHandlers();
+    
     // Start connection monitoring
     startConnectionMonitoring();
+    
+    // Get current location and create a full URL for the FastAPI server
+    setupVideoFeed();
+}
+
+function getFastAPIUrl() {
+    // Try to get the fastapiUrl from the global scope if it exists
+    if (typeof fastapiUrl !== 'undefined' && fastapiUrl) {
+        return fastapiUrl;
+    }
+    
+    // Otherwise, construct it from the current hostname
+    const hostname = window.location.hostname;
+    return `http://${hostname}:8000`;
+}
+
+function setupVideoFeed() {
+    console.log("Setting up video feed");
+    const videoStream = document.getElementById('videoStream');
+    const noVideoMessage = document.getElementById('no-video-message');
+    
+    if (!videoStream || !noVideoMessage) {
+        console.error("Video elements not found");
+        return;
+    }
+    
+    // Get the FastAPI URL
+    const apiUrl = getFastAPIUrl();
+    console.log("Using FastAPI URL:", apiUrl);
+    
+    // Set the initial video source with a timestamp to prevent caching
+    videoStream.src = `${apiUrl}/video_feed?t=${new Date().getTime()}`;
+    
+    // Handle video load success
+    videoStream.onload = function() {
+        console.log("Video loaded successfully");
+        videoStream.style.display = 'block';
+        noVideoMessage.style.display = 'none';
+        videoRetryCount = 0;  // Reset retry count on success
+    };
+    
+    // Handle video load error
+    videoStream.onerror = function() {
+        console.error("Video failed to load");
+        handleVideoError();
+    };
+    
+    // Start periodic video checks
+    videoCheckInterval = setInterval(checkVideoFeed, 5000);
+}
+
+function checkVideoFeed() {
+    const healthcheckUrl = `${getFastAPIUrl()}/healthcheck`;
+    
+    fetch(healthcheckUrl)
+        .then(response => response.json())
+        .then(data => {
+            console.log("Health check response:", data);
+            if (data.status === "healthy") {
+                document.getElementById('no-video-message').style.display = 'none';
+                document.getElementById('videoStream').style.display = 'block';
+                videoRetryCount = 0;  // Reset retry count on success
+            } else {
+                handleVideoError();
+            }
+        })
+        .catch(error => {
+            console.error("Health check failed:", error);
+            handleVideoError();
+        });
+}
+
+function handleVideoError() {
+    const videoStream = document.getElementById('videoStream');
+    const noVideoMessage = document.getElementById('no-video-message');
+    
+    videoRetryCount++;
+    
+    if (videoRetryCount <= MAX_VIDEO_RETRIES) {
+        console.log(`Video error, retrying (${videoRetryCount}/${MAX_VIDEO_RETRIES})...`);
+        refreshVideoFeed();
+    } else {
+        console.error("Max video retries reached, showing error message");
+        videoStream.style.display = 'none';
+        noVideoMessage.style.display = 'block';
+        noVideoMessage.textContent = "No Video Feed Available - Check Camera Connection";
+    }
+}
+
+function refreshVideoFeed() {
+    const videoStream = document.getElementById('videoStream');
+    if (videoStream) {
+        const apiUrl = getFastAPIUrl();
+        const timestamp = new Date().getTime();
+        console.log("Refreshing video feed:", `${apiUrl}/video_feed?t=${timestamp}`);
+        videoStream.src = `${apiUrl}/video_feed?t=${timestamp}`;
+    }
 }
 
 function setupButtonHandlers() {
     const takeoffButton = document.getElementById('takeoffButton');
     const landButton = document.getElementById('landButton');
     const emergencyButton = document.getElementById('emergencyButton');
+    const refreshVideoBtn = document.getElementById('refreshVideoBtn');
     
     if (takeoffButton) {
         takeoffButton.addEventListener('click', () => {
@@ -59,6 +163,13 @@ function setupButtonHandlers() {
         emergencyButton.addEventListener('click', () => {
             socket.emit('control', 'disarm');
             showStatusMessage('EMERGENCY STOP!');
+        });
+    }
+    
+    if (refreshVideoBtn) {
+        refreshVideoBtn.addEventListener('click', () => {
+            refreshVideoFeed();
+            showStatusMessage('Refreshing video...');
         });
     }
 }
@@ -319,72 +430,7 @@ function startConnectionMonitoring() {
     // Check video stream health periodically
     connectionCheckInterval = setInterval(() => {
         checkVideoFeed();
-    }, 3000);
-}
-
-function checkVideoFeed() {
-    const videoStream = document.getElementById('videoStream');
-    const noVideoMessage = document.getElementById('no-video-message');
-    
-    if (videoStream && noVideoMessage) {
-        const testImg = new Image();
-        const timestamp = new Date().getTime();
-        
-        // Use the FastAPI URL passed from the template
-        testImg.src = fastapiUrl + '/video_feed?t=' + timestamp;
-        
-        testImg.onload = function() {
-            noVideoMessage.style.display = 'none';
-            videoStream.style.display = 'block'; // Ensure video is visible
-            videoStream.src = testImg.src; // Update the video stream source
-        };
-        
-        testImg.onerror = function() {
-            noVideoMessage.style.display = 'block';
-            videoStream.style.display = 'none'; // Hide video on error
-            setTimeout(refreshVideoFeed, 3000); // Retry after 3 seconds
-        };
-    }
-}
-
-function refreshVideoFeed() {
-    const videoStream = document.getElementById('videoStream');
-    if (videoStream) {
-        videoStream.src = '{{ fastapi_url }}/video_feed?t=' + new Date().getTime();
-    }
-}
-
-function requestFullscreen() {
-    try {
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen();
-        } else if (elem.mozRequestFullScreen) { /* Firefox */
-            elem.mozRequestFullScreen();
-        } else if (elem.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { /* IE/Edge */
-            elem.msRequestFullscreen();
-        }
-    } catch (e) {
-        console.log("Fullscreen failed:", e);
-    }
-}
-
-function lockOrientation() {
-    try {
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch((error) => {
-                console.log("Orientation lock failed:", error);
-            });
-        } else if (window.screen.lockOrientation) {
-            window.screen.lockOrientation('landscape');
-        } else {
-            console.log("Orientation lock not supported on this device.");
-        }
-    } catch (e) {
-        console.log("Orientation lock failed:", e);
-    }
+    }, 10000);
 }
 
 // Initialize when the DOM is fully loaded

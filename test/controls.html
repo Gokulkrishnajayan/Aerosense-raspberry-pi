@@ -5,9 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Additional styles to ensure video feed works on mobile devices */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            overflow: hidden;
+            background-color: #000;
+        }
+        
+        #videoStream {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .no-video-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 5;
+        }
+        
+        @media (orientation: portrait) {
+            #orientation-warning {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.9);
+                color: white;
+                z-index: 1000;
+                text-align: center;
+                padding: 20px;
+            }
+        }
+        
+        @media (orientation: landscape) {
+            #orientation-warning {
+                display: none;
+            }
+        }
+    </style>
 </head>
 
-<body onload="init()">
+<body>
 
     <div id="orientation-warning">
         <h2>Please rotate your device to landscape mode!</h2>
@@ -15,7 +73,7 @@
 
     <!-- Video stream with overlay for status messages -->
     <div class="video-container">
-        <img id="videoStream" src="{{ fastapi_url }}/video_feed" alt="Video Feed">
+        <img id="videoStream" alt="Video Feed">
         <div id="video-overlay" class="video-overlay"></div>
         <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
         <div id="status-message" class="status-message"></div>
@@ -97,24 +155,61 @@
     
     <!-- Add debugging button -->
     <div id="debug-controls" style="position: fixed; bottom: 10px; right: 10px; z-index: 1000;">
-        <button id="refreshVideoBtn" style="padding: 5px 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="refreshVideoFeed()">
+        <button id="refreshVideoBtn" style="padding: 5px 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">
             Refresh Video
         </button>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+    
     <script>
     // Pass the FastAPI URL to JavaScript
     const fastapiUrl = "{{ fastapi_url }}";
-
+    
+    // Function to refresh video feed
     function refreshVideoFeed() {
         const videoStream = document.getElementById('videoStream');
         if (videoStream) {
-            videoStream.src = fastapiUrl + '/video_feed?t=' + new Date().getTime();
+            videoStream.src = `${fastapiUrl}/video_feed?t=${new Date().getTime()}`;
         }
     }
+    
+    // Initialize function that runs after the page loads
+    function init() {
+        console.log("Page loaded, initializing...");
+        console.log("FastAPI URL: " + fastapiUrl);
+        
+        // Set initial video source
+        const videoStream = document.getElementById('videoStream');
+        if (videoStream) {
+            videoStream.src = `${fastapiUrl}/video_feed?t=${new Date().getTime()}`;
+            console.log("Video source set to: " + videoStream.src);
+        }
+        
+        // Check if touch device
+        const isTouchDevice = (
+            'ontouchstart' in window || 
+            navigator.maxTouchPoints > 0 || 
+            navigator.msMaxTouchPoints > 0
+        ) && !window.matchMedia("(pointer: fine)").matches;
+        
+        if (isTouchDevice) {
+            document.body.classList.add('touch-device');
+        }
+        
+        // Set up refresh button
+        const refreshVideoBtn = document.getElementById('refreshVideoBtn');
+        if (refreshVideoBtn) {
+            refreshVideoBtn.addEventListener('click', function() {
+                refreshVideoFeed();
+                console.log("Video refresh requested");
+            });
+        }
+    }
+    
+    // Call init function when window loads
+    window.addEventListener('load', init);
     </script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ import threading
 import time
 import cv2
 import logging
+import numpy as np  # Added missing numpy import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -26,9 +27,10 @@ app.add_middleware(
 # Shared global frame buffer
 frame = None
 lock = threading.Lock()
+camera_active = False
 
 def initialize_camera():
-    global picam2, frame
+    global picam2, frame, camera_active
     try:
         picam2 = Picamera2()
         config = picam2.create_video_configuration(
@@ -50,16 +52,28 @@ def initialize_camera():
         
         with lock:
             frame = jpeg.tobytes()  # Set an initial frame
+            camera_active = True
             
         logger.info("Initial frame captured")
         return True
     except Exception as e:
         logger.error(f"Camera initialization failed: {e}")
+        
+        # Create a fallback frame with error message
+        blank_frame = 255 * np.ones((360, 640, 3), dtype=np.uint8)
+        cv2.putText(blank_frame, "Camera Error: " + str(e)[:30], (50, 180), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        _, jpeg = cv2.imencode('.jpg', blank_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        
+        with lock:
+            frame = jpeg.tobytes()
+            camera_active = False
+            
         return False
 
 # Capture frames in a background thread
 def capture_frames():
-    global frame
+    global frame, camera_active
     logger.info("Frame capture thread started")
     
     frame_count = 0
@@ -67,6 +81,15 @@ def capture_frames():
     
     while True:
         try:
+            if not camera_active:
+                logger.warning("Camera not active, attempting to reinitialize...")
+                if initialize_camera():
+                    logger.info("Camera reinitialized successfully")
+                else:
+                    logger.error("Failed to reinitialize camera")
+                    time.sleep(5)  # Wait before trying again
+                    continue
+
             rgb = picam2.capture_array("main")
             bgr = cv2.cvtColor(rgb, cv2.COLOR_RGBA2BGR)
             
@@ -95,27 +118,46 @@ def capture_frames():
             time.sleep(0.033)  # ~30 FPS
         except Exception as e:
             logger.error(f"Error capturing frame: {e}")
-            time.sleep(0.5)  # Pause briefly before retrying
+            
+            # Create an error frame
+            blank_frame = 255 * np.ones((360, 640, 3), dtype=np.uint8)
+            cv2.putText(blank_frame, "Camera Error", (50, 180), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            try:
+                _, jpeg = cv2.imencode('.jpg', blank_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+                with lock:
+                    frame = jpeg.tobytes()
+                    camera_active = False
+            except Exception as inner_e:
+                logger.error(f"Error creating error frame: {inner_e}")
+                
+            time.sleep(1)  # Pause briefly before retrying
 
 # Generate frames for streaming
 def generate_frames():
+    global frame
     while True:
-        with lock:
-            current_frame = frame
-            
-        if current_frame:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
-            logger.info("Frame sent successfully")
-        else:
-            # If no frame is available, send a blank black frame
-            blank = cv2.imencode('.jpg', 
-                                 255 * np.ones((360, 640, 3), dtype=np.uint8))[1].tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + blank + b'\r\n')
-            logger.warning("No frame available, sending blank frame")
-                   
-        time.sleep(0.033)  # ~30 FPS
+        try:
+            with lock:
+                current_frame = frame
+                
+            if current_frame:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+            else:
+                # If no frame is available, send a blank frame with error message
+                blank = np.zeros((360, 640, 3), dtype=np.uint8)
+                cv2.putText(blank, "No Video Signal", (180, 180), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                _, encoded = cv2.imencode('.jpg', blank)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + encoded.tobytes() + b'\r\n')
+                      
+            time.sleep(0.033)  # ~30 FPS
+        except Exception as e:
+            logger.error(f"Error in generate_frames: {e}")
+            time.sleep(0.5)
+
 @app.get("/")
 def root():
     return {"message": "Video streaming server is running"}
@@ -129,25 +171,26 @@ def video_feed():
 
 @app.get("/healthcheck")
 def healthcheck():
-    if frame is not None:
-        return {"status": "healthy", "camera": "connected"}
-    else:
-        return {"status": "unhealthy", "camera": "disconnected"}
+    with lock:
+        has_frame = frame is not None
+        is_active = camera_active
+        
+    return {
+        "status": "healthy" if has_frame and is_active else "unhealthy", 
+        "camera": "connected" if is_active else "disconnected",
+        "has_frame": has_frame
+    }
 
 # Initialize everything
 if __name__ == '__main__':
     import uvicorn
-    import numpy as np
     
     # Try to initialize camera
     camera_ready = initialize_camera()
     
-    if camera_ready:
-        # Start frame capture thread
-        thread = threading.Thread(target=capture_frames, daemon=True)
-        thread.start()
-        
-        logger.info("Starting FastAPI server on port 8000")
-        uvicorn.run(app, host="0.0.0.0", port=8000)
-    else:
-        logger.critical("Failed to initialize camera - exiting")
+    # Start frame capture thread (always start it, it will try to reconnect if needed)
+    thread = threading.Thread(target=capture_frames, daemon=True)
+    thread.start()
+    
+    logger.info("Starting FastAPI server on port 8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
