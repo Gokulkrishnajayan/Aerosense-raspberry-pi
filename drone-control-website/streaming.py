@@ -102,7 +102,7 @@ def capture_frames():
             cv2.putText(bgr, "Camera Feed Active", (10, bgr.shape[0] - 10), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
             
-            _, jpeg = cv2.imencode('.jpg', bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+            _, jpeg = cv2.imencode('.jpg', rgb, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
 
             with lock:
                 frame = jpeg.tobytes()
@@ -115,7 +115,7 @@ def capture_frames():
                 logger.info(f"Current FPS: {fps:.2f}")
                 start_time = time.time()
                 
-            time.sleep(0.033)  # ~30 FPS
+            time.sleep(0.01)  # ~30 FPS
         except Exception as e:
             logger.error(f"Error capturing frame: {e}")
             
