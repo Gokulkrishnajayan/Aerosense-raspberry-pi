@@ -35,12 +35,12 @@ body {
 
 /* Video container and stream styling */
 .video-container {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative;
     width: 100%;
-    height: 100%;
-    z-index: 1; /* Ensure video is below controls but above background */
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    background-color: #000;
+    margin-bottom: 10px; /* Add some space below the video */
 }
 
 #videoStream {
@@ -97,18 +97,18 @@ body {
 
 /* Control buttons */
 .controls-container {
-    position: absolute;
+    position: fixed;
     top: 20px;
     right: 20px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    z-index: 10;
+    gap: 8px; /* Reduced gap */
+    z-index: 1000;
 }
 
 .action-button {
-    padding: 12px 20px;
-    font-size: 16px;
+    padding: 8px 12px; /* Smaller padding */
+    font-size: 14px; /* Smaller font size */
     font-weight: bold;
     border: none;
     border-radius: 8px;
@@ -119,15 +119,21 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px; /* Reduced gap */
 }
 
 .action-button i {
-    font-size: 18px;
+    font-size: 16px; /* Smaller icon size */
 }
 
 .action-button:hover {
     transform: scale(1.05);
+}
+
+
+/* Refresh button */
+.refresh-button {
+    border-left: 4px solid var(--warning-color);
 }
 
 .takeoff-button {
@@ -144,24 +150,25 @@ body {
 
 /* Telemetry panel */
 .telemetry-panel {
-    position: absolute;
+    position: fixed;
     top: 20px;
     left: 20px;
     background: var(--panel-bg);
-    padding: 15px;
+    padding: 10px; /* Reduced padding */
     border-radius: 10px;
-    z-index: 10;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-width: 250px;
+    gap: 6px; /* Reduced gap */
+    min-width: 200px; /* Smaller width */
     border-left: 4px solid var(--primary-color);
+    font-size: 14px; /* Smaller font size */
 }
 
 .telemetry-row {
     display: flex;
     justify-content: space-between;
-    gap: 15px;
+    gap: 10px; /* Reduced gap */
 }
 
 .telemetry-item {
@@ -171,9 +178,7 @@ body {
 }
 
 .telemetry-item i {
-    color: var(--primary-color);
-    width: 20px;
-    text-align: center;
+    font-size: 16px; /* Smaller icon size */
 }
 
 .status-armed {
@@ -202,9 +207,14 @@ body {
     color: var(--text-light);
 }
 
-/* Hide joysticks by default (they will be enabled via touch-device class) */
+/* Joystick container */
 #joystick-container {
-    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 20px;
+    z-index: 1000;
 }
 
 .joystick {
@@ -232,14 +242,9 @@ body {
     transition: transform 0.1s;
 }
 
+/* Remove joystick label styles */
 .joystick-label {
-    position: absolute;
-    bottom: -30px;
-    width: 100%;
-    text-align: center;
-    font-size: 14px;
-    color: var(--text-light);
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    display: none;
 }
 
 #left-joystick {
@@ -257,13 +262,13 @@ body {
 /* Command display */
 #command-display {
     position: fixed;
-    bottom: 20px;
+    bottom: 80px; /* Adjust to avoid overlapping with controls */
     left: 50%;
     transform: translateX(-50%);
     background: var(--panel-bg);
     padding: 10px 20px;
     border-radius: 8px;
-    z-index: 100;
+    z-index: 1000;
     display: none;
     color: var(--text-light);
 }
@@ -282,7 +287,7 @@ body {
 
 /* Keyboard info panel */
 .keyboard-info {
-    position: absolute;
+    position: fixed;
     bottom: 20px;
     right: 20px;
     background: var(--panel-bg);
@@ -370,18 +375,37 @@ body.touch-device #joystick-container {
 }
 
 @media (max-width: 768px) {
+    /* Adjust controls container for mobile */
     .controls-container {
+        bottom: 10px;
         right: 10px;
-        top: 10px;
+        gap: 8px;
     }
-    
+
+    /* Adjust telemetry panel for mobile */
     .telemetry-panel {
-        left: 10px;
         top: 10px;
+        left: 10px;
         min-width: unset;
         font-size: 14px;
+        padding: 10px;
     }
-    
+
+    /* Adjust joystick container for mobile */
+    #joystick-container {
+        bottom: 10px;
+        left: 10px;
+        gap: 10px;
+    }
+
+    /* Adjust command display for mobile */
+    #command-display {
+        bottom: 60px; /* Adjust to avoid overlapping with controls */
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+
+    /* Adjust action buttons for mobile */
     .action-button {
         padding: 10px 15px;
         font-size: 14px;
@@ -399,4 +423,131 @@ body.touch-device #joystick-container {
     #right-joystick {
         right: 70px;
     }
+}
+
+
+/* Ensure the body fills the screen in full-screen mode */
+body:-webkit-full-screen {
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--bg-dark);
+}
+
+body:-moz-full-screen {
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--bg-dark);
+}
+
+body:-ms-fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--bg-dark);
+}
+
+body:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    background: var(--bg-dark);
+}
+
+/* Ensure video container fills the screen in full-screen mode */
+.video-container:-webkit-full-screen {
+    width: 100% !important;
+    height: 100% !important;
+    background: black;
+}
+
+.video-container:-moz-full-screen {
+    width: 100% !important;
+    height: 100% !important;
+    background: black;
+}
+
+.video-container:-ms-fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    background: black;
+}
+
+.video-container:fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    background: black;
+}
+
+/* Ensure video stream fills the container in full-screen mode */
+#videoStream:-webkit-full-screen {
+    object-fit: contain !important;
+}
+
+#videoStream:-moz-full-screen {
+    object-fit: contain !important;
+}
+
+#videoStream:-ms-fullscreen {
+    object-fit: contain !important;
+}
+
+#videoStream:fullscreen {
+    object-fit: contain !important;
+}
+
+/* Ensure controls and other elements are visible in full-screen mode */
+.controls-container:-webkit-full-screen,
+.telemetry-panel:-webkit-full-screen,
+#command-display:-webkit-full-screen,
+#joystick-container:-webkit-full-screen,
+.keyboard-info:-webkit-full-screen {
+    z-index: 1000; /* Ensure controls are above the video */
+}
+
+.controls-container:-moz-full-screen,
+.telemetry-panel:-moz-full-screen,
+#command-display:-moz-full-screen,
+#joystick-container:-moz-full-screen,
+.keyboard-info:-moz-full-screen {
+    z-index: 1000;
+}
+
+.controls-container:-ms-fullscreen,
+.telemetry-panel:-ms-fullscreen,
+#command-display:-ms-fullscreen,
+#joystick-container:-ms-fullscreen,
+.keyboard-info:-ms-fullscreen {
+    z-index: 1000;
+}
+
+.controls-container:fullscreen,
+.telemetry-panel:fullscreen,
+#command-display:fullscreen,
+#joystick-container:fullscreen,
+.keyboard-info:fullscreen {
+    z-index: 1000;
+}
+
+
+
+/* Mode switch */
+.mode-switch {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+.mode-select {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--panel-bg);
+    color: var(--text-light);
+    cursor: pointer;
+    outline: none;
+}
+
+.mode-select:hover {
+    background: rgba(255, 255, 255, 0.1);
 }

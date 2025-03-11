@@ -25,8 +25,15 @@ simulated_drone = {
 # Get the host IP address for use in templates
 def get_host_ip():
     import socket
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Connect to a public IP to get the correct interface
+        s.connect(("8.8.8.8", 80))
+        ip_address = s.getsockname()[0]
+    except:
+        ip_address = socket.gethostbyname(socket.gethostname())
+    finally:
+        s.close()
     return ip_address
 
 # Synchronous telemetry task

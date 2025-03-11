@@ -13,7 +13,48 @@ let videoCheckInterval;
 let videoRetryCount = 0;
 const MAX_VIDEO_RETRIES = 5;
 
+// Call setupFullscreenListeners in the init function
 function init() {
+    console.log("Page loaded, initializing...");
+    console.log("FastAPI URL: " + fastapiUrl);
+
+    // Set initial video source
+    const videoStream = document.getElementById('videoStream');
+    if (videoStream) {
+        videoStream.src = `${fastapiUrl}/video_feed?t=${new Date().getTime()}`;
+        console.log("Video source set to: " + videoStream.src);
+    }
+
+    // Check if touch device
+    const isTouchDevice = (
+        'ontouchstart' in window || 
+        navigator.maxTouchPoints > 0 || 
+        navigator.msMaxTouchPoints > 0
+    ) && !window.matchMedia("(pointer: fine)").matches;
+
+    if (isTouchDevice) {
+        document.body.classList.add('touch-device');
+    }
+
+    // Set up refresh button
+    const refreshVideoBtn = document.getElementById('refreshVideoBtn');
+    if (refreshVideoBtn) {
+        refreshVideoBtn.addEventListener('click', function() {
+            refreshVideoFeed();
+            console.log("Video refresh requested");
+        });
+    }
+
+    // Set up full-screen functionality
+    setupFullscreen();
+
+    // Set up full-screen listeners
+    setupFullscreenListeners();
+
+    // Set up mode switch
+    setupModeSwitch();
+    
+
     // Add touch-device class to body if it's a touch device
     if (isTouchDevice) {
         document.body.classList.add('touch-device');
@@ -432,6 +473,104 @@ function startConnectionMonitoring() {
         checkVideoFeed();
     }, 10000);
 }
+
+// Function to enter full-screen mode
+function enterFullscreen() {
+    const body = document.body;
+
+    if (!document.fullscreenElement) {
+        if (body.requestFullscreen) {
+            body.requestFullscreen();
+        } else if (body.mozRequestFullScreen) { // Firefox
+            body.mozRequestFullScreen();
+        } else if (body.webkitRequestFullscreen) { // Chrome, Safari, Opera
+            body.webkitRequestFullscreen();
+        } else if (body.msRequestFullscreen) { // IE/Edge
+            body.msRequestFullscreen();
+        }
+    }
+}
+
+// Function to enter full-screen mode
+function enterFullscreen() {
+    const body = document.body;
+
+    if (!document.fullscreenElement) {
+        if (body.requestFullscreen) {
+            body.requestFullscreen();
+        } else if (body.mozRequestFullScreen) { // Firefox
+            body.mozRequestFullScreen();
+        } else if (body.webkitRequestFullscreen) { // Chrome, Safari, Opera
+            body.webkitRequestFullscreen();
+        } else if (body.msRequestFullscreen) { // IE/Edge
+            body.msRequestFullscreen();
+        }
+    }
+}
+
+// Add touchstart event listener to enter full-screen mode
+function setupFullscreen() {
+    const videoContainer = document.querySelector('.video-container');
+
+    if (videoContainer) {
+        videoContainer.addEventListener('touchstart', enterFullscreen, { once: true });
+    }
+}
+
+
+// Function to exit full-screen mode
+function exitFullscreen() {
+    if (document.exitFullscreen) {
+        document.exitFullscreen();
+    } else if (document.mozCancelFullScreen) { // Firefox
+        document.mozCancelFullScreen();
+    } else if (document.webkitExitFullscreen) { // Chrome, Safari, Opera
+        document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) { // IE/Edge
+        document.msExitFullscreen();
+    }
+}
+
+// Handle back button press on mobile devices
+function handleBackButton() {
+    if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+        exitFullscreen();
+    }
+}
+
+// Handle Esc key press on desktop
+function handleEscKey(event) {
+    if (event.key === 'Escape') {
+        exitFullscreen();
+    }
+}
+
+// Add event listeners for back button and Esc key
+function setupFullscreenListeners() {
+    // Listen for back button on mobile
+    if (window.history && window.history.pushState) {
+        window.addEventListener('popstate', handleBackButton);
+    }
+
+    // Listen for Esc key on desktop
+    document.addEventListener('keydown', handleEscKey);
+}
+
+
+
+// Add mode switch functionality
+function setupModeSwitch() {
+    const modeSelect = document.getElementById('modeSelect');
+
+    if (modeSelect) {
+        modeSelect.addEventListener('change', (event) => {
+            const selectedMode = event.target.value;
+            console.log("Mode changed to:", selectedMode);
+            socket.emit('mode', selectedMode); // Send mode to the server
+        });
+    }
+}
+
 
 // Initialize when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", init);

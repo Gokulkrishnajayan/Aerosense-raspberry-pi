@@ -165,8 +165,9 @@ def root():
 @app.get("/video_feed")
 def video_feed():
     return StreamingResponse(
-        generate_frames(), 
-        media_type="multipart/x-mixed-replace; boundary=frame"
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Access-Control-Allow-Origin": "*"}
     )
 
 @app.get("/healthcheck")
