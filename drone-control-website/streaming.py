@@ -36,7 +36,13 @@ def initialize_camera():
         config = picam2.create_video_configuration(
             main={"size": (640, 360), "format": "XRGB8888"},
             lores={"size": (320, 180), "format": "YUV420"},
-            controls={"FrameDurationLimits": (33333, 33333), "AwbEnable": True, "AeEnable": True}
+            controls={
+                "FrameDurationLimits": (33333, 33333),  # 30 FPS
+                "AwbEnable": True,  # Auto white balance
+                "AeEnable": True,   # Auto exposure
+                "AfMode": 1,       # Enable autofocus (1 = Auto)
+                "AfSpeed": 2,       # Autofocus speed (1 = Normal, 2 = Fast)
+            }
         )
         picam2.configure(config)
         picam2.start()
