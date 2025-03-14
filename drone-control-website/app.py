@@ -64,7 +64,7 @@ def login():
 def controls():
     # Pass the FastAPI server URL to the template
     host_ip = get_host_ip()
-    return render_template('controls.html', fastapi_url=f"http://{host_ip}:8000")
+    return render_template('controls.html', fastapi_url=f"https://{host_ip}:8000")
 
 @socketio.on('connect')
 def handle_connect():
@@ -110,10 +110,31 @@ def handle_control(data):
         elif data == 'land' and simulated_drone["armed"]:
             socketio.emit('status', "Landing...")
 
+
+import os
+import eventlet
+
+# SSL Certificate Paths
+ssl_key = "/home/GokulDragon/ssl/key.pem"
+ssl_cert = "/home/GokulDragon/ssl/cert.pem"
+
+
+
 if __name__ == '__main__':
     print("Initializing system...")
-    
+
+    # Check if SSL files exist before starting the server
+    if not os.path.exists(ssl_key) or not os.path.exists(ssl_cert):
+        print("❌ ERROR: SSL certificate or key file not found!")
+        exit(1)
+
     host_ip = get_host_ip()
-    print(f"Server running! Access the web interface at: http://{host_ip}:5000")
-    
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    print(f"🔹 Server running! Access it at: **https://{host_ip}:5000**")
+
+    # Run Flask with SSL using eventlet (supports WebSockets)
+    eventlet.wsgi.server(
+        eventlet.wrap_ssl(eventlet.listen(('0.0.0.0', 5000)),
+                          certfile=ssl_cert,
+                          keyfile=ssl_key,
+                          server_side=True),app
+    )

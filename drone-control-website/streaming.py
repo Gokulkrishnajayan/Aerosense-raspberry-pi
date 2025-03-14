@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from picamera2 import Picamera2
+from fastapi import Request
 import threading
 import time
 import cv2
@@ -188,6 +189,67 @@ def healthcheck():
         "has_frame": has_frame
     }
 
+@app.post("/select_object")
+async def select_object(request: Request):
+    data = await request.json()
+    with lock:
+        if frame is None:
+            return {"success": False}
+        
+        # Convert frame to OpenCV image
+        nparr = np.frombuffer(frame, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        # Extract selected region
+        h, w = img.shape[:2]
+        x = int(data['x'] * w)
+        y = int(data['y'] * h)
+        width = int(data['width'] * w)
+        height = int(data['height'] * h)
+        
+        # Get template (selected object)
+        template = img[y:y+height, x:x+width]
+        
+        # Save template for tracking
+        # (You'll need to implement actual tracking logic here)
+        cv2.imwrite("selected_object.jpg", template)
+        
+        return {
+            "success": True,
+            "object": {
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height
+            }
+        }
+
+@app.get("/track_object")
+def track_object():
+    # Implement your actual object tracking logic here
+    # This should return current object position
+    return {
+        "success": True,
+        "position": {"x": 320, "y": 180}  # Example position
+    }
+
+tracker = None
+
+def track_object(frame):
+    global tracker
+    # Initialize tracker on first frame
+    if tracker is None:
+        tracker = cv2.TrackerKCF_create()
+        template = cv2.imread("selected_object.jpg")
+        if template is None:
+            return None
+        bbox = (0, 0, template.shape[1], template.shape[0])
+        tracker.init(frame, bbox)
+    
+    # Update tracker
+    success, bbox = tracker.update(frame)
+    return success, bbox
+
 # Initialize everything
 if __name__ == '__main__':
     import uvicorn
@@ -200,4 +262,5 @@ if __name__ == '__main__':
     thread.start()
     
     logger.info("Starting FastAPI server on port 8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000,ssl_keyfile="/home/GokulDragon/ssl/key.pem", 
+        ssl_certfile="/home/GokulDragon/ssl/cert.pem")

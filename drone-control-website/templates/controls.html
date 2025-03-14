@@ -73,6 +73,9 @@
 
     <!-- Video stream with overlay for status messages -->
     <div class="video-container" id="video-container">
+        <!-- Add this inside the video-container div -->
+        <div id="selection-box" class="selection-box"></div>
+
         <img id="videoStream" alt="Video Feed" crossorigin="anonymous">
         <div id="video-overlay" class="video-overlay"></div>
         <div id="no-video-message" class="no-video-message">No Video Feed Available</div>
@@ -145,13 +148,13 @@
     </div>
 
     <!-- Mode Switch -->
-<div class="mode-switch">
-    <select id="modeSelect" class="mode-select">
-        <option value="transmitter">Transmitter Control</option>
-        <option value="ai">AI Control</option>
-        <option value="follow">Follow Me</option>
-    </select>
-</div>
+    <div class="mode-switch">
+        <select id="modeSelect" class="mode-select">
+            <option value="manual">Manual Control</option>
+            <option value="ai">AI Control</option>
+            <option value="follow">Follow Me</option>
+        </select>
+    </div>
 
     <!-- Modal for connection issues -->
     <div id="connection-modal" class="modal">
@@ -173,56 +176,23 @@
         </button>
     </div> -->
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+    <video id="userCamera" autoplay playsinline style="
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        width: 200px;
+        height: 150px;
+        border: 2px solid #00ff00;
+        z-index: 1000;
+        display: none;">
+    </video>
+
     
     <script>
-    // Pass the FastAPI URL to JavaScript
-    const fastapiUrl = "{{ fastapi_url }}";
-    
-    // Function to refresh video feed
-    function refreshVideoFeed() {
-        const videoStream = document.getElementById('videoStream');
-        if (videoStream) {
-            videoStream.src = `${fastapiUrl}/video_feed?t=${new Date().getTime()}`;
-        }
-    }
-    
-    // Initialize function that runs after the page loads
-    function init() {
-        console.log("Page loaded, initializing...");
-        console.log("FastAPI URL: " + fastapiUrl);
-        
-        // Set initial video source
-        const videoStream = document.getElementById('videoStream');
-        if (videoStream) {
-            videoStream.src = `${fastapiUrl}/video_feed?t=${new Date().getTime()}`;
-            console.log("Video source set to: " + videoStream.src);
-        }
-        
-        // Check if touch device
-        const isTouchDevice = (
-            'ontouchstart' in window || 
-            navigator.maxTouchPoints > 0 || 
-            navigator.msMaxTouchPoints > 0
-        ) && !window.matchMedia("(pointer: fine)").matches;
-        
-        if (isTouchDevice) {
-            document.body.classList.add('touch-device');
-        }
-        
-        // Set up refresh button
-        const refreshVideoBtn = document.getElementById('refreshVideoBtn');
-        if (refreshVideoBtn) {
-            refreshVideoBtn.addEventListener('click', function() {
-                refreshVideoFeed();
-                console.log("Video refresh requested");
-            });
-        }
-    }
-    
-    // Call init function when window loads
-    window.addEventListener('load', init);
+        // Pass the FastAPI URL to JavaScript
+        const fastapiUrl = "{{ fastapi_url }}";
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </body>
 </html>

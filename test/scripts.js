@@ -1,4 +1,9 @@
 // Global variables
+let isSelecting = false;
+let startX, startY;
+let selectionBox = document.getElementById('selection-box');
+let selectedRegion = null;
+let currentMode = 'manual'; // Default mode
 const socket = io();
 let lastCommand = Date.now();
 // Improved touch detection
@@ -49,8 +54,7 @@ function init() {
     setupFullscreen();
 
     // Set up mode switch
-    setupModeSwitch();
-    
+    setupModeSwitch();    
 
     // Add touch-device class to body if it's a touch device
     if (isTouchDevice) {
@@ -68,8 +72,8 @@ function init() {
         document.getElementById('joystick-container').style.display = 'none';
         // Initialize keyboard controls for non-touch devices
         setupKeyboardControls();
-        // Show keyboard info for non-touch devices
-        document.getElementById('keyboard-controls').style.display = 'block';
+        // Remove this line to hide the keyboard control panel by default
+        // document.getElementById('keyboard-controls').style.display = 'block';
     }
 
     // Initialize socket handlers
@@ -83,6 +87,10 @@ function init() {
     
     // Get current location and create a full URL for the FastAPI server
     setupVideoFeed();
+
+    // Set up mode switch
+    setupObjectSelection();
+    handleModeSwitch();
 }
 
 function getFastAPIUrl() {
@@ -603,6 +611,133 @@ function setupModeSwitch() {
         });
     }
 }
+
+// Add this function to toggle the keyboard control panel
+function toggleKeyboardControls() {
+    const keyboardControls = document.getElementById('keyboard-controls');
+    if (keyboardControls) {
+        if (keyboardControls.style.display === 'none' || keyboardControls.style.display === '') {
+            keyboardControls.style.display = 'block'; // Show the panel
+        } else {
+            keyboardControls.style.display = 'none'; // Hide the panel
+        }
+    }
+}
+
+// Add this event listener for the 'h' key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'h' || e.key === 'H') { // Check if 'h' or 'H' is pressed
+        toggleKeyboardControls(); // Toggle the keyboard control panel
+    }
+});
+
+
+// Function to handle mode switch
+function handleModeSwitch() {
+    const modeSelect = document.getElementById('modeSelect');
+    const followMeControls = document.getElementById('follow-me-controls');
+    const joystickContainer = document.getElementById('joystick-container');
+    const keyboardControls = document.getElementById('keyboard-controls');
+
+    if (modeSelect) {
+        modeSelect.addEventListener('change', (event) => {
+            currentMode = event.target.value;
+            console.log("Mode changed to:", currentMode);
+
+            // Hide/show elements based on mode
+            if (currentMode === 'manual') {
+                joystickContainer.style.display = isTouchDevice ? 'flex' : 'none';
+                keyboardControls.style.display = 'none';
+                followMeControls.style.display = 'none';
+                
+            } else if (currentMode === 'ai') {
+                joystickContainer.style.display = 'none';
+                keyboardControls.style.display = 'none';
+                followMeControls.style.display = 'none';
+                endSelection()
+                startAIControl();
+            } else if (currentMode === 'follow') {
+                joystickContainer.style.display = 'none';
+                keyboardControls.style.display = 'none';
+                followMeControls.style.display = 'block';
+                startFollowMeMode();
+            }
+        });
+    }
+}
+
+// Add new functions
+function setupObjectSelection() {
+    const videoContainer = document.getElementById('video-container');
+    
+    videoContainer.addEventListener('mousedown', startSelection);
+    videoContainer.addEventListener('mousemove', resizeSelection);
+    videoContainer.addEventListener('mouseup', endSelection);
+    
+    // Touch events for mobile
+    videoContainer.addEventListener('touchstart', startSelection);
+    videoContainer.addEventListener('touchmove', resizeSelection);
+    videoContainer.addEventListener('touchend', endSelection);
+}
+
+function startSelection(e) {
+    if (currentMode !== 'follow') return;
+    
+    isSelecting = true;
+    const rect = e.target.getBoundingClientRect();
+    const clientX = e.clientX || e.touches[0].clientX;
+    const clientY = e.clientY || e.touches[0].clientY;
+    
+    startX = clientX - rect.left;
+    startY = clientY - rect.top;
+    
+    selectionBox.style.left = startX + 'px';
+    selectionBox.style.top = startY + 'px';
+    selectionBox.style.width = '0';
+    selectionBox.style.height = '0';
+    selectionBox.style.display = 'block';
+}
+
+function resizeSelection(e) {
+    if (!isSelecting) return;
+    
+    const rect = e.target.getBoundingClientRect();
+    const clientX = e.clientX || e.touches[0].clientX;
+    const clientY = e.clientY || e.touches[0].clientY;
+    
+    const currentX = clientX - rect.left;
+    const currentY = clientY - rect.top;
+    
+    const width = currentX - startX;
+    const height = currentY - startY;
+    
+    selectionBox.style.width = Math.abs(width) + 'px';
+    selectionBox.style.height = Math.abs(height) + 'px';
+    selectionBox.style.left = (width > 0 ? startX : currentX) + 'px';
+    selectionBox.style.top = (height > 0 ? startY : currentY) + 'px';
+}
+
+function endSelection() {
+    if (!isSelecting) return;
+    isSelecting = false;
+    
+    const rect = selectionBox.getBoundingClientRect();
+    const videoRect = document.getElementById('videoStream').getBoundingClientRect();
+    
+    // Calculate relative coordinates (0-1)
+    selectedRegion = {
+        x: (rect.left - videoRect.left) / videoRect.width,
+        y: (rect.top - videoRect.top) / videoRect.height,
+        width: rect.width / videoRect.width,
+        height: rect.height / videoRect.height
+    };
+}
+
+
+
+
+
+
 
 // Initialize when the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", init);

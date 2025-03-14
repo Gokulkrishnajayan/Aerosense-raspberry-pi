@@ -614,3 +614,89 @@ body:fullscreen {
     width: 100vw !important;
     height: 100vw !important;
 }
+
+
+/* Mode Switch */
+.mode-switch {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+}
+
+.mode-select {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--panel-bg);
+    color: var(--text-light);
+    cursor: pointer;
+    outline: none;
+}
+
+.mode-select:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* Follow Me Controls */
+.follow-me-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: var(--panel-bg);
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
+}
+
+
+
+/* Selection Box */
+.selection-box {
+    position: absolute;
+    border: 2px solid #00ff00;
+    background: rgba(0, 255, 0, 0.1);
+    display: none;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Follow Me Controls */
+.follow-me-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: var(--panel-bg);
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
+    text-align: center;
+}
+
+.selection-instruction {
+    color: var(--text-light);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+
+
+/* Style for the small client camera feed window */
+#clientCameraFeed {
+    position: fixed; /* Keep it fixed on the screen */
+    bottom: 10px; /* Position at the bottom */
+    right: 10px; /* Position at the right */
+    width: 200px; /* Set the width */
+    height: 150px; /* Set the height */
+    border: 2px solid #00ff00; /* Green border to highlight the feed */
+    z-index: 1000; /* Ensure it's above other elements */
+    display: block; /* Initially hidden, shown only in AI mode */
+    transform: scaleX(-1)
+}
+
