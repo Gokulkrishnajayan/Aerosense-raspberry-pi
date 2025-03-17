@@ -674,7 +674,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const modeSelect = document.getElementById("modeSelect");
     let cameraStream = null;
     let handDetectionRunning = false;
-
     async function startHandTracking() {
         console.log("Starting Hand Tracking...");
     
@@ -689,6 +688,13 @@ document.addEventListener("DOMContentLoaded", () => {
             videoElement.srcObject = cameraStream;
             videoElement.style.display = "block";
     
+            const canvas = document.getElementById("handCanvas");
+            const ctx = canvas.getContext("2d");
+    
+            // Set canvas size to match video
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+    
             // Initialize MediaPipe Hands
             const hands = new Hands({ locateFile: (file) => `/static/mediapipe/${file}` });
             hands.setOptions({
@@ -699,33 +705,36 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     
             hands.onResults((results) => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
                 if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    drawHandLandmarks(ctx, results.multiHandLandmarks[0]);
                     processHandGesture(results.multiHandLandmarks[0]);
                 }
             });
-            
     
-            async function detectHands() {
-                if (!handDetectionRunning) return;
-                await hands.send({ image: videoElement });
-                requestAnimationFrame(detectHands);
-            }
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({ image: videoElement });
+                },
+                width: 640,
+                height: 480
+            });
     
+            camera.start();
             handDetectionRunning = true;
-            detectHands();
         } catch (error) {
             console.error("Camera access error:", error);
-            // alert("Camera access denied or unavailable.");
         }
     }
+    
+    
 
 
-
-    // Listen for mode selection change
     if (modeSelect) {
         modeSelect.addEventListener("change", (event) => {
             if (event.target.value === "ai") {
-                startHandTracking(); // Start hand tracking when entering AI mode
+                startHandTracking(); // Start hand tracking in AI mode
             } else {
                 handDetectionRunning = false;
                 if (cameraStream) {
@@ -735,6 +744,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+    
 
 });
 
@@ -858,7 +868,7 @@ function processHandGesture(landmarks) {
         { name: "Ring", tip: 16, base: 14 },
         { name: "Pinky", tip: 20, base: 18 }
     ];
-    
+
     let raisedFingers = [];
 
     fingers.forEach(finger => {
@@ -872,17 +882,32 @@ function processHandGesture(landmarks) {
     else if (raisedFingers.includes("Thumb") && raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring") && raisedFingers.includes("Pinky")) command = "land";
     else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle")) command = "down";
     else if (raisedFingers.includes("Index")) command = "up";
-    else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring")) command = "yaw_x";
-    else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring") && raisedFingers.includes("Pinky")) command = "yaw_y";
     else if (raisedFingers.includes("Thumb")) command = "right";
     else if (raisedFingers.includes("Pinky")) command = "left";
 
     document.getElementById("gestureOutput").innerText = `Detected Gesture: ${command}`;
     console.log("Gesture detected:", command);
-
-    // Send the detected gesture to the drone via WebSocket
-    socket.emit("ai_control", { command: command });
 }
+
+
+function drawHandLandmarks(ctx, landmarks) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    ctx.fillStyle = "red";
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < landmarks.length; i++) {
+        const x = landmarks[i].x * ctx.canvas.width;
+        const y = landmarks[i].y * ctx.canvas.height;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+    }
+}
+
 
 
 

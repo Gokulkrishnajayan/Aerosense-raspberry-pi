@@ -1,4 +1,5 @@
 import base64
+import time
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -49,6 +50,8 @@ def check_drone_mode(fingers_raised):
     
     if command:
         sio.emit('ai_control', {'command': command})  # Send command to Raspberry Pi
+        print(f"Detected Fingers: {fingers_raised}, Command: {command}")
+
 
 # Capture from client's camera
 cap = cv2.VideoCapture(0)
@@ -90,12 +93,26 @@ while cap.isOpened():
         # Encode frame to Base64 for streaming
     _, buffer = cv2.imencode('.jpg', frame)
     encoded_frame = base64.b64encode(buffer).decode('utf-8')
+    
 
+    
     # Send processed frame to the web client
     sio.emit('processed_frame', {'image': encoded_frame})
     # cv2.imshow('Hand Detection', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+def connect_socket():
+    while True:
+        try:
+            sio.connect('https://192.168.7.57:5000', transports=['websocket'])
+            print("Reconnected to WebSocket")
+            break
+        except Exception as e:
+            print("WebSocket Reconnect Failed:", e)
+            time.sleep(5)  # Retry after 5 seconds
+
+sio.on('disconnect', connect_socket)  # Reconnect when disconnected
 
 
 @sio.on('stop_ai')

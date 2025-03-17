@@ -139,11 +139,13 @@ def handle_mode_change(mode):
 
 def cleanup():
     global ai_process
-    if ai_process:
+    if ai_process and ai_process.poll() is None:  # Ensure it's running before killing
         ai_process.terminate()
+        ai_process.wait()
         ai_process = None
 
 atexit.register(cleanup)
+
 
 if __name__ == '__main__':
     print("Initializing system...")

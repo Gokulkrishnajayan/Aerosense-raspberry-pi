@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="{{ url_for('static', filename='opencv.js') }}"></script>
+
     <style>
         /* Additional styles to ensure video feed works on mobile devices */
         .video-container {
@@ -185,7 +187,27 @@
         border: 2px solid #00ff00;
         z-index: 1000;
         display: none;">
+
+        <canvas id="handCanvas"></canvas>
+        <div id="gestureOutput">Detected Gesture: None</div>
+
+
     </video>
+
+    <div id="gestureOutput" style="color: white; font-size: 20px; margin-top: 10px;">
+        Detected Gesture: None
+    </div>
+    
+    
+
+
+
+    
+<div id="ai-mode-active" style="display: none; position: fixed; top: 10px; left: 50%;
+    transform: translateX(-50%); background: red; color: white; padding: 5px;">
+    AI MODE ACTIVE
+</div>
+
  
 
 
