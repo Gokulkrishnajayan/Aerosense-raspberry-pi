@@ -676,32 +676,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let handDetectionRunning = false;
 
     async function startHandTracking() {
-        console.log("Checking camera access...");
-    
-        // If camera is already active, re-enable it instead of requesting access again
-        if (cameraStream) {
-            console.log("Resuming camera...");
-            cameraStream.getTracks().forEach(track => (track.enabled = true)); // Re-enable stream
-            document.getElementById("userCamera").style.display = "block";
-            handDetectionRunning = true;
-            return;
-        }
+        console.log("Starting Hand Tracking...");
     
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             console.error("getUserMedia not supported.");
-            alert("Camera access is not supported on this device or browser.");
             return;
         }
     
         try {
-            // Request camera access only if not already active
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    
             const videoElement = document.getElementById("userCamera");
             videoElement.srcObject = cameraStream;
             videoElement.style.display = "block";
-    
-            console.log("Camera access granted. Starting hand tracking...");
     
             // Initialize MediaPipe Hands
             const hands = new Hands({ locateFile: (file) => `/static/mediapipe/${file}` });
@@ -713,10 +699,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     
             hands.onResults((results) => {
-                if (results.multiHandLandmarks) {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                     processHandGesture(results.multiHandLandmarks[0]);
                 }
             });
+            
     
             async function detectHands() {
                 if (!handDetectionRunning) return;
@@ -728,31 +715,26 @@ document.addEventListener("DOMContentLoaded", () => {
             detectHands();
         } catch (error) {
             console.error("Camera access error:", error);
-            console.log("Camera access denied. Please allow camera permissions and try again.");
+            // alert("Camera access denied or unavailable.");
         }
     }
 
 
-  
+
     // Listen for mode selection change
     if (modeSelect) {
         modeSelect.addEventListener("change", (event) => {
             if (event.target.value === "ai") {
-                startHandTracking(); // Start or resume hand tracking
+                startHandTracking(); // Start hand tracking when entering AI mode
             } else {
                 handDetectionRunning = false;
-                document.getElementById("userCamera").style.display = "none";
-
-                // Instead of stopping, disable the video track (mute it)
                 if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => (track.enabled = false)); 
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    document.getElementById("userCamera").style.display = "none";
                 }
             }
         });
     }
-
-
-
 
 });
 
@@ -876,6 +858,7 @@ function processHandGesture(landmarks) {
         { name: "Ring", tip: 16, base: 14 },
         { name: "Pinky", tip: 20, base: 18 }
     ];
+    
     let raisedFingers = [];
 
     fingers.forEach(finger => {
@@ -896,6 +879,9 @@ function processHandGesture(landmarks) {
 
     document.getElementById("gestureOutput").innerText = `Detected Gesture: ${command}`;
     console.log("Gesture detected:", command);
+
+    // Send the detected gesture to the drone via WebSocket
+    socket.emit("ai_control", { command: command });
 }
 
 
