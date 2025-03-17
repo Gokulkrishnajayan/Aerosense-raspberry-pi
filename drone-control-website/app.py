@@ -1,9 +1,20 @@
+import subprocess
 from flask import Flask, render_template, Response, request
 from flask_socketio import SocketIO
 import random
 import time
 import logging
 import threading
+import os
+import eventlet
+import atexit
+
+# Global variable to store the AI process
+ai_process = None
+
+# SSL Certificate Paths
+ssl_key = "/home/GokulDragon/ssl/key.pem"
+ssl_cert = "/home/GokulDragon/ssl/cert.pem"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -111,13 +122,29 @@ def handle_control(data):
             socketio.emit('status', "Landing...")
 
 
-import os
-import eventlet
+@socketio.on('mode')
+def handle_mode_change(mode):
+    global ai_process
 
-# SSL Certificate Paths
-ssl_key = "/home/GokulDragon/ssl/key.pem"
-ssl_cert = "/home/GokulDragon/ssl/cert.pem"
+    if mode == "ai":
+        if ai_process is None:
+            print("Starting AI Control...")
+            ai_process = subprocess.Popen(["python3", "drone.py"])
+    else:
+        if ai_process is not None:
+            print("Stopping AI Control...")
+            socketio.emit('stop_ai')  # Send stop signal to drone.py
+            ai_process.terminate()
+            ai_process = None
 
+def cleanup():
+    global ai_process
+    if ai_process and ai_process.poll() is None:  # Ensure it's running before killing
+        ai_process.terminate()
+        ai_process.wait()
+        ai_process = None
+
+atexit.register(cleanup)
 
 
 if __name__ == '__main__':

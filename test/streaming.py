@@ -262,4 +262,5 @@ if __name__ == '__main__':
     thread.start()
     
     logger.info("Starting FastAPI server on port 8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000,ssl_keyfile="/home/GokulDragon/ssl/key.pem", 
+        ssl_certfile="/home/GokulDragon/ssl/cert.pem")

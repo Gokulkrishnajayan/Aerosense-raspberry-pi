@@ -1,4 +1,7 @@
 // Global variables
+let handDetectionRunning = false;
+let cameraStream = null;
+
 let isSelecting = false;
 let startX, startY;
 let selectionBox = document.getElementById('selection-box');
@@ -89,7 +92,6 @@ function init() {
     setupVideoFeed();
 
     // Set up mode switch
-    setupObjectSelection();
     handleModeSwitch();
 }
 
@@ -649,22 +651,98 @@ function handleModeSwitch() {
                 joystickContainer.style.display = isTouchDevice ? 'flex' : 'none';
                 keyboardControls.style.display = 'none';
                 followMeControls.style.display = 'none';
-                
+                endSelection();
             } else if (currentMode === 'ai') {
                 joystickContainer.style.display = 'none';
                 keyboardControls.style.display = 'none';
                 followMeControls.style.display = 'none';
-                endSelection()
+                endSelection();
                 startAIControl();
             } else if (currentMode === 'follow') {
                 joystickContainer.style.display = 'none';
                 keyboardControls.style.display = 'none';
                 followMeControls.style.display = 'block';
+                setupObjectSelection();
                 startFollowMeMode();
             }
         });
     }
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const userVideo = document.getElementById("userCamera");
+    const modeSelect = document.getElementById("modeSelect");
+    let cameraStream = null;
+    let handDetectionRunning = false;
+
+    async function startAIControl() {
+        console.log("Entering AI mode...");
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error("getUserMedia is not supported in this browser.");
+            return;
+        }
+
+        try {
+            // Request access to the user's camera
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+            userVideo.srcObject = cameraStream; // Assign stream to video element
+            userVideo.style.display = "block"; // Show video feed
+
+            console.log("User camera feed started in AI mode");
+
+            // Start hand detection only if not already running
+            if (!handDetectionRunning) {
+                runHandDetection(userVideo);
+                handDetectionRunning = true;
+            }
+        } catch (error) {
+            console.error("Error accessing user camera:", error);
+            alert("Camera access denied or unavailable.");
+        }
+    }
+
+    function stopAIControl() {
+        console.log("Exiting AI mode...");
+
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop()); // Stop camera
+            cameraStream = null;
+        }
+
+        userVideo.style.display = "none"; // Hide video feed
+        handDetectionRunning = false;
+
+        console.log("User camera feed stopped");
+    }
+
+    // Listen for mode selection change
+    if (modeSelect) {
+        modeSelect.addEventListener("change", (event) => {
+            if (event.target.value === "ai") {
+                startAIControl(); // Start camera when entering AI mode
+            } else {
+                stopAIControl(); // Stop camera when exiting AI mode
+            }
+        });
+    }
+});
+
+// Placeholder for hand detection function
+function runHandDetection(videoElement) {
+    console.log("Running hand detection on client camera feed");
+    // Your hand tracking ML model should go here
+}
+
+
+
+
+
+
+
+
+
 
 // Add new functions
 function setupObjectSelection() {
@@ -734,6 +812,18 @@ function endSelection() {
 }
 
 
+
+    
+
+    
+
+    
+
+function runHandDetection(videoElement) {
+    // Your hand detection code goes here
+    console.log("Running hand detection on client camera feed");
+    // Example placeholder: Integrate your ML model here
+}
 
 
 

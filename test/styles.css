@@ -684,3 +684,19 @@ body:fullscreen {
     margin-bottom: 8px;
     font-size: 14px;
 }
+
+
+
+/* Style for the small client camera feed window */
+#clientCameraFeed {
+    position: fixed; /* Keep it fixed on the screen */
+    bottom: 10px; /* Position at the bottom */
+    right: 10px; /* Position at the right */
+    width: 200px; /* Set the width */
+    height: 150px; /* Set the height */
+    border: 2px solid #00ff00; /* Green border to highlight the feed */
+    z-index: 1000; /* Ensure it's above other elements */
+    display: block; /* Initially hidden, shown only in AI mode */
+    transform: scaleX(-1)
+}
+

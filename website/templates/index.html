@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Gesture Control</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <h2>Hand Gesture Detection</h2>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const socket = io.connect(location.protocol + "//" + location.host);
+
+        async function startVideo() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        }
+        startVideo();
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(video, {
+            onFrame: async () => {
+                await hands.send({image: video});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+
+        function onResults(results) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach(landmarks => {
+                    drawLandmarks(landmarks);
+                    const gesture = detectGesture(landmarks);
+                    socket.emit("gesture_command", { command: gesture });
+                });
+            }
+        }
+
+        function drawLandmarks(landmarks) {
+            ctx.fillStyle = "red";
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < landmarks.length; i++) {
+                const x = landmarks[i].x * canvas.width;
+                const y = landmarks[i].y * canvas.height;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+
+        function detectGesture(landmarks) {
+            const fingers = {
+                "Thumb": [4, 3], "Index": [8, 6], "Middle": [12, 10],
+                "Ring": [16, 14], "Pinky": [20, 18]
+            };
+            let raisedFingers = [];
+
+            for (const [finger, [tip, base]] of Object.entries(fingers)) {
+                if (landmarks[tip].y < landmarks[base].y) {
+                    raisedFingers.push(finger);
+                }
+            }
+
+            const commandMap = {
+                "": "stable",
+                "Thumb,Index,Middle,Ring,Pinky": "land",
+                "Index,Middle": "down",
+                "Index": "up",
+                "Index,Middle,Ring": "yaw_x",
+                "Index,Middle,Ring,Pinky": "yaw_y",
+                "Thumb": "right",
+                "Pinky": "left"
+            };
+
+            return commandMap[raisedFingers.sort().join(",")] || "stable";
+        }
+    </script>
+</body>
+</html>

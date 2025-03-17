@@ -675,70 +675,116 @@ document.addEventListener("DOMContentLoaded", () => {
     let cameraStream = null;
     let handDetectionRunning = false;
 
-    async function startAIControl() {
-        console.log("Entering AI mode...");
-
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            console.error("getUserMedia is not supported in this browser.");
+    async function startHandTracking() {
+        console.log("Checking camera access...");
+    
+        // If camera is already active, re-enable it instead of requesting access again
+        if (cameraStream) {
+            console.log("Resuming camera...");
+            cameraStream.getTracks().forEach(track => (track.enabled = true)); // Re-enable stream
+            document.getElementById("userCamera").style.display = "block";
+            handDetectionRunning = true;
             return;
         }
-
+    
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error("getUserMedia not supported.");
+            alert("Camera access is not supported on this device or browser.");
+            return;
+        }
+    
         try {
-            // Request access to the user's camera
+            // Request camera access only if not already active
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-            userVideo.srcObject = cameraStream; // Assign stream to video element
-            userVideo.style.display = "block"; // Show video feed
-
-            console.log("User camera feed started in AI mode");
-
-            // Start hand detection only if not already running
-            if (!handDetectionRunning) {
-                runHandDetection(userVideo);
-                handDetectionRunning = true;
+    
+            const videoElement = document.getElementById("userCamera");
+            videoElement.srcObject = cameraStream;
+            videoElement.style.display = "block";
+    
+            console.log("Camera access granted. Starting hand tracking...");
+    
+            // Initialize MediaPipe Hands
+            const hands = new Hands({ locateFile: (file) => `/static/mediapipe/${file}` });
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+    
+            hands.onResults((results) => {
+                if (results.multiHandLandmarks) {
+                    processHandGesture(results.multiHandLandmarks[0]);
+                }
+            });
+    
+            async function detectHands() {
+                if (!handDetectionRunning) return;
+                await hands.send({ image: videoElement });
+                requestAnimationFrame(detectHands);
             }
+    
+            handDetectionRunning = true;
+            detectHands();
         } catch (error) {
-            console.error("Error accessing user camera:", error);
-            alert("Camera access denied or unavailable.");
+            console.error("Camera access error:", error);
+            console.log("Camera access denied. Please allow camera permissions and try again.");
         }
     }
 
-    function stopAIControl() {
-        console.log("Exiting AI mode...");
 
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop()); // Stop camera
-            cameraStream = null;
-        }
-
-        userVideo.style.display = "none"; // Hide video feed
-        handDetectionRunning = false;
-
-        console.log("User camera feed stopped");
-    }
-
+  
     // Listen for mode selection change
     if (modeSelect) {
         modeSelect.addEventListener("change", (event) => {
             if (event.target.value === "ai") {
-                startAIControl(); // Start camera when entering AI mode
+                startHandTracking(); // Start or resume hand tracking
             } else {
-                stopAIControl(); // Stop camera when exiting AI mode
+                handDetectionRunning = false;
+                document.getElementById("userCamera").style.display = "none";
+
+                // Instead of stopping, disable the video track (mute it)
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => (track.enabled = false)); 
+                }
             }
         });
     }
+
+
+
+
 });
 
-// Placeholder for hand detection function
-function runHandDetection(videoElement) {
-    console.log("Running hand detection on client camera feed");
-    // Your hand tracking ML model should go here
-}
 
 
 
 
 
+socket.on('mode', (mode) => {
+    document.getElementById("ai-mode-active").style.display = mode === "ai" ? "block" : "none";
+});
+
+socket.on('processed_frame', (data) => {
+    if (data.image) {
+        document.getElementById("videoStream").src = "data:image/jpeg;base64," + data.image;
+    }
+});
+socket.on('disconnect', () => {
+    console.log("Disconnected. Attempting to reconnect...");
+    setTimeout(() => socket.connect(), 5000); // Retry every 5 sec
+});
+document.getElementById('takeoffButton').addEventListener('click', () => {
+    if (confirm("Are you sure you want to take off?")) {
+        socket.emit('control', 'takeoff');
+    }
+});
+setInterval(() => {
+    const videoStream = document.getElementById('videoStream');
+    if (videoStream && videoStream.src.includes("video_feed")) {
+        videoStream.src = videoStream.src.split("?")[0] + "?t=" + new Date().getTime();
+    }
+}, 10000); // Refresh every 10 sec
 
 
 
@@ -819,10 +865,37 @@ function endSelection() {
 
     
 
-function runHandDetection(videoElement) {
-    // Your hand detection code goes here
-    console.log("Running hand detection on client camera feed");
-    // Example placeholder: Integrate your ML model here
+
+
+
+function processHandGesture(landmarks) {
+    const fingers = [
+        { name: "Thumb", tip: 4, base: 3 },
+        { name: "Index", tip: 8, base: 6 },
+        { name: "Middle", tip: 12, base: 10 },
+        { name: "Ring", tip: 16, base: 14 },
+        { name: "Pinky", tip: 20, base: 18 }
+    ];
+    let raisedFingers = [];
+
+    fingers.forEach(finger => {
+        if (landmarks[finger.tip].y < landmarks[finger.base].y) {
+            raisedFingers.push(finger.name);
+        }
+    });
+
+    let command = "stable";
+    if (raisedFingers.length === 0) command = "stable";
+    else if (raisedFingers.includes("Thumb") && raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring") && raisedFingers.includes("Pinky")) command = "land";
+    else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle")) command = "down";
+    else if (raisedFingers.includes("Index")) command = "up";
+    else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring")) command = "yaw_x";
+    else if (raisedFingers.includes("Index") && raisedFingers.includes("Middle") && raisedFingers.includes("Ring") && raisedFingers.includes("Pinky")) command = "yaw_y";
+    else if (raisedFingers.includes("Thumb")) command = "right";
+    else if (raisedFingers.includes("Pinky")) command = "left";
+
+    document.getElementById("gestureOutput").innerText = `Detected Gesture: ${command}`;
+    console.log("Gesture detected:", command);
 }
 
 

@@ -1,9 +1,20 @@
+import subprocess
 from flask import Flask, render_template, Response, request
 from flask_socketio import SocketIO
 import random
 import time
 import logging
 import threading
+import os
+import eventlet
+import atexit
+
+# Global variable to store the AI process
+ai_process = None
+
+# SSL Certificate Paths
+ssl_key = "/home/GokulDragon/ssl/key.pem"
+ssl_cert = "/home/GokulDragon/ssl/cert.pem"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -64,7 +75,7 @@ def login():
 def controls():
     # Pass the FastAPI server URL to the template
     host_ip = get_host_ip()
-    return render_template('controls.html', fastapi_url=f"http://{host_ip}:8000")
+    return render_template('controls.html', fastapi_url=f"https://{host_ip}:8000")
 
 @socketio.on('connect')
 def handle_connect():
@@ -110,10 +121,45 @@ def handle_control(data):
         elif data == 'land' and simulated_drone["armed"]:
             socketio.emit('status', "Landing...")
 
+
+@socketio.on('mode')
+def handle_mode_change(mode):
+    global ai_process
+
+    if mode == "ai":
+        if ai_process is None:
+            print("Starting AI Control...")
+            ai_process = subprocess.Popen(["python3", "drone.py"])
+    else:
+        if ai_process is not None:
+            print("Stopping AI Control...")
+            socketio.emit('stop_ai')  # Send stop signal to drone.py
+            ai_process.terminate()
+            ai_process = None
+
+def cleanup():
+    global ai_process
+    if ai_process:
+        ai_process.terminate()
+        ai_process = None
+
+atexit.register(cleanup)
+
 if __name__ == '__main__':
     print("Initializing system...")
-    
+
+    # Check if SSL files exist before starting the server
+    if not os.path.exists(ssl_key) or not os.path.exists(ssl_cert):
+        print("❌ ERROR: SSL certificate or key file not found!")
+        exit(1)
+
     host_ip = get_host_ip()
-    print(f"Server running! Access the web interface at: http://{host_ip}:5000")
-    
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    print(f"🔹 Server running! Access it at: **https://{host_ip}:5000**")
+
+    # Run Flask with SSL using eventlet (supports WebSockets)
+    eventlet.wsgi.server(
+        eventlet.wrap_ssl(eventlet.listen(('0.0.0.0', 5000)),
+                          certfile=ssl_cert,
+                          keyfile=ssl_key,
+                          server_side=True),app
+    )
